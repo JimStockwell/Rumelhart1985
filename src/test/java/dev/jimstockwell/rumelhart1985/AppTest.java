@@ -38,13 +38,13 @@ public class AppTest
             assertEquals(w[i].length, net.w()[i].length);
             for(int j = 0; j < w[i].length; j++)
             {
-                assertEquals(w[i][j], net.w()[i][j], w[i][j]/1e9);
+                assertEquals(w[i][j], net.w()[i][j], 0);
             }
         }
 
         // A copy, not a view, right?
         w[0][0] = 0;
-        assertEquals(1e6,net.w()[0][0],1e6/1e9);
+        assertEquals(1e6,net.w()[0][0],0);
     }
 
     @Test
@@ -58,12 +58,12 @@ public class AppTest
             assertEquals(theta[i].length, net.theta()[i].length);
             for(int j = 0; j < theta[i].length; j++)
             {
-                assertEquals(theta[i][j], net.theta()[i][j], theta[i][j]/1e9);
+                assertEquals(theta[i][j], net.theta()[i][j], 0);
             }
         }
 
         // A copy, not a view, right?
         theta[0][0] = 0;
-        assertEquals(1e6,net.theta()[0][0],1e6/1e9);
+        assertEquals(1e6,net.theta()[0][0],0);
     }
 }
