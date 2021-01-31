@@ -1,6 +1,8 @@
 package dev.jimstockwell.rumelhart1985;
 
 import java.util.Arrays;
+import static java.lang.Math.exp;
+import static dev.jimstockwell.rumelhart1985.ArraysExtended.twoDCopyOf;
 
 /**
  * Hello world!
@@ -29,16 +31,6 @@ class Network
     private final double[][] w;
     private final double[][] theta;
 
-    private static double[][] twoDCopyOf(double[][] source)
-    {
-        final double[][] tmp = new double[source.length][];
-        for(int i=0; i<source.length; i++)
-        {
-            tmp[i] = Arrays.copyOf(source[i],source[i].length);
-        }
-        return tmp;
-    }
-
     Network(int[] structure, double[][] w, double[][] theta)
     {
         this.w = twoDCopyOf(w);
@@ -60,9 +52,16 @@ class Network
         return new Network(new int[] {}, new double[][]{{1}}, new double[][]{{1}});
     }
 
-    int[] answer(int[] inputPattern)
+    double[] answer(double[] inputPattern)
     {
-        return new int[]{1};
+        double netpj = 0; // accumulate netpj
+
+        for( int i=0; i<inputPattern.length; i++)
+        {
+            netpj += inputPattern[i] * w[0][i];
+        }
+        
+        return new double[]{1/(1+exp(-(netpj+theta[0][0])))};
     }
 }
 

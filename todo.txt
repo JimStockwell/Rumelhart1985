@@ -1,0 +1,4 @@
+TODO:
+  new network size == old network size
+  do number of inputs equal structure's first layer?
+  flesh out Network::learn so that it isn't just a stub
