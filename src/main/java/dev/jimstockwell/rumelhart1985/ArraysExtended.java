@@ -13,4 +13,14 @@ class ArraysExtended {
         }
         return tmp;
     }
+
+    static double[][][] threeDCopyOf(double[][][] source)
+    {
+        final double[][][] tmp = new double[source.length][][];
+        for(int layer=0; layer<source.length; layer++)
+        {
+            tmp[layer] = twoDCopyOf(source[layer]);
+        }
+        return tmp;
+    }
 }
