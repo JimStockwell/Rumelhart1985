@@ -44,7 +44,10 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.8.0</version>
           <configuration>
-            <release>11</release>
+              <release>11</release>
+              <compilerArgument>-Xlint:all</compilerArgument>
+              <showWarnings>true</showWarnings>
+              <showDeprecation>true</showDeprecation>
           </configuration>
         </plugin>
         <plugin>
