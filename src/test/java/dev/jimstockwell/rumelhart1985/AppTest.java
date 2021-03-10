@@ -285,8 +285,9 @@ public class AppTest
     public void learnMakesNonSymetricWAndTheta()
     {
         Network net2 = new Network().withStructure(new int[]{2,2});
-        assertNotEquals(net2.w()[0][0][1], net2.w()[0][0][0], 1e-6);
-        assertNotEquals(net2.theta()[0][0], net2.theta()[0][1], 1e-6);
+        // TODO: Do we need 1e-9, or will this compare exactly?
+        assertNotEquals(net2.w()[0][0][1], net2.w()[0][0][0], 1e-9);
+        assertNotEquals(net2.theta()[0][0], net2.theta()[0][1], 1e-9);
     }
 
     @Test
@@ -307,6 +308,7 @@ public class AppTest
         Network net = new Network().withStructure(structure)
                                    .withW(w)
                                    .withTheta(theta);
+// TODO: Bring this test back
 //        LearningLog log = net.learn(Patterns.xor());
 //        assertTrue(java.util.Arrays.deepEquals(log.net(0).w(),w));
 //        assertTrue(java.util.Arrays.deepEquals(log.net(0).theta(),theta));
@@ -458,7 +460,7 @@ public class AppTest
         double delta1 = (target[0]-answer[0])*answer[0]*(1-answer[0]);
         new_w = net.w()[1][0][0];
         assertEquals(
-            ETA*delta1*net.outputs[1][0],
+            ETA*delta1*net.outputs().getOutput(1,0),
             new_w-originalW[1][0][0],
             Math.abs(new_w-originalW[1][0][0])*1e-6);
 
