@@ -460,7 +460,7 @@ public class AppTest
         double delta1 = (target[0]-answer[0])*answer[0]*(1-answer[0]);
         new_w = net.w()[1][0][0];
         assertEquals(
-            ETA*delta1*net.outputs().getOutput(1,0),
+            ETA*delta1*net.outputs().get(1,0),
             new_w-originalW[1][0][0],
             Math.abs(new_w-originalW[1][0][0])*1e-6);
 

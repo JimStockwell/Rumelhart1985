@@ -31,7 +31,7 @@ public class ArrayDeltas implements Deltas
         int layer, // excluding input
         int node)
     {
-        double output = outputs.getOutput(layer+1,node);
+        double output = outputs.get(layer+1,node);
         double fprime = output*(1-output); // TODO: don't hardcode formula
         if(layer == outputs.countOfLayersExcludingInput()-1)
         {

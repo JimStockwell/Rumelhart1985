@@ -292,13 +292,13 @@ class Network implements Cloneable
                     for(int outNode=0; outNode<structure[layer]; outNode++)
                     {
                         // variable names directly from Rumelhart
-                        double o_pj = outputs.getOutput(layer,outNode);
+                        double o_pj = outputs.get(layer,outNode);
                         double t_pj = target.getTarget(outNode);
                         double δ_pj = deltas.getDelta(layer-1,outNode);
 
                         for(int inNode=0; inNode<structure[layer-1]; inNode++)
                         {
-                            double i_pi = outputs.getOutput(layer-1,inNode);
+                            double i_pi = outputs.get(layer-1,inNode);
                             double ΔpWji = η * δ_pj * i_pi;
                             w[layer-1][outNode][inNode] += ΔpWji;
                         }
