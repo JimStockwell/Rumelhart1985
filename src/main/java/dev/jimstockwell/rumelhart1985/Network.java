@@ -28,8 +28,9 @@ class Network implements Cloneable
     private double[][][] w;   // layer 0 is from input units
     private double[][] theta; // layer 0 is first hidden units
                               // no activation function.
-    double[][] outputs; // cached results of forward sweeps
-                        // layer 0 is a copy of the input
+
+    private Outputs outputs; // cached results of forward sweeps
+                                // layer 0 is a copy of the input
 
     private ActivationFunction activationFunction =
                 new LogisticActivationFunction();
@@ -283,7 +284,7 @@ class Network implements Cloneable
 
                 Deltas deltas = new ArrayDeltas(
                     target,
-                    new Outputs(outputs), // TODO: one format for outputs
+                    outputs,
                     new Weights(w)); // TODO: one format for weights
 
                 for(int layer=structure.length-1; layer>=1; layer--)
@@ -291,13 +292,13 @@ class Network implements Cloneable
                     for(int outNode=0; outNode<structure[layer]; outNode++)
                     {
                         // variable names directly from Rumelhart
-                        double o_pj = outputs[layer][outNode];
+                        double o_pj = outputs.getOutput(layer,outNode);
                         double t_pj = target.getTarget(outNode);
                         double δ_pj = deltas.getDelta(layer-1,outNode);
 
                         for(int inNode=0; inNode<structure[layer-1]; inNode++)
                         {
-                            double i_pi = outputs[layer-1][inNode];
+                            double i_pi = outputs.getOutput(layer-1,inNode);
                             double ΔpWji = η * δ_pj * i_pi;
                             w[layer-1][outNode][inNode] += ΔpWji;
                         }
@@ -342,24 +343,32 @@ class Network implements Cloneable
         return retval;
     }
 
-    private double[] sweepForward(double[] inputPattern)
+    private void sweepForward(double[] inputPattern)
     {
-        outputs = new double[structure.length][];
-        outputs[0] = inputPattern;
+        double[][] outs = new double[structure.length][];
+        outs[0] = inputPattern;
 
-        outputs[1] = answerOneLayer(inputPattern, w[0], theta[0]);
+        outs[1] = answerOneLayer(inputPattern, w[0], theta[0]);
         for(int layer=2; layer<structure.length; layer++)
         {
-            outputs[layer] =
-                answerOneLayer(outputs[layer-1], w[layer-1], theta[layer-1]);
+            outs[layer] =
+                answerOneLayer(outs[layer-1], w[layer-1], theta[layer-1]);
         }
-        return outputs[structure.length-1];
+        outputs = new Outputs(outs);
     }
 
     double[] answer(double[] inputPattern)
     {
         sweepForward(inputPattern);
-        return outputs[outputs.length-1];
+        return outputs.getLastLayer()
+                         .stream()
+                         .mapToDouble(Number::doubleValue)
+                         .toArray();
+    }
+
+    Outputs outputs()
+    {
+        return outputs;
     }
 }
 

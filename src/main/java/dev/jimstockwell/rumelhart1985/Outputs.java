@@ -12,12 +12,6 @@ class Outputs
 {
     final List<List<Double>> data; // immutable
 
-    // layer starts with 0 = input layer
-    double getOutput(int layer, int node)
-    {
-        return data.get(layer).get(node);
-    }
-
     // TODO: combine common code in the two constructors
     Outputs(Double[][] outputs)
     {
@@ -41,12 +35,23 @@ class Outputs
         data = List.copyOf(builder);
     }
 
+    // layer starts with 0 = input layer
+    double getOutput(int layer, int node)
+    {
+        return data.get(layer).get(node);
+    }
+
     /**
      * As an unmodifiable List of immutables.
      */
     List<List<Double>> getOutputsData()
     {
         return data;
+    }
+
+    List<Double> getLastLayer()
+    {
+        return data.get(data.size()-1);
     }
 
     int countOfLayersExcludingInput()
