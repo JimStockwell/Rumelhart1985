@@ -308,7 +308,7 @@ public class AppTest
         Network net = new Network().withStructure(structure)
                                    .withW(w)
                                    .withTheta(theta);
-// TODO: Bring this test back
+// TODO: Bring this test back, or remove entirely.
 //        LearningLog log = net.learn(Patterns.xor());
 //        assertTrue(java.util.Arrays.deepEquals(log.net(0).w(),w));
 //        assertTrue(java.util.Arrays.deepEquals(log.net(0).theta(),theta));
@@ -460,7 +460,7 @@ public class AppTest
         double delta1 = (target[0]-answer[0])*answer[0]*(1-answer[0]);
         new_w = net.w()[1][0][0];
         assertEquals(
-            ETA*delta1*net.outputs().getOutput(1,0),
+            ETA*delta1*net.outputs().get(1,0),
             new_w-originalW[1][0][0],
             Math.abs(new_w-originalW[1][0][0])*1e-6);
 
@@ -470,7 +470,6 @@ public class AppTest
             new_θ-originalTheta[1][0],
             Math.abs(new_θ-originalTheta[1][0])*1e-6);
 
-// TODO: hidden layer's weights and theta
 
     }
 }

@@ -36,7 +36,7 @@ class Outputs
     }
 
     // layer starts with 0 = input layer
-    double getOutput(int layer, int node)
+    double get(int layer, int node)
     {
         return data.get(layer).get(node);
     }
