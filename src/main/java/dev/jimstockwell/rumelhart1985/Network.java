@@ -35,6 +35,12 @@ class Network implements Cloneable
     private Outputs outputs; // cached results of forward sweeps
                                 // layer 0 is a copy of the input
 
+    //
+    // TODO: respect modularization of ActivationFunction.
+    // This looks all broken out and seperate and well modularized,
+    // but actually, we hard code its derivite all around, so be careful,
+    // until this is improved!
+    //
     private ActivationFunction activationFunction =
                 new LogisticActivationFunction();
 
@@ -266,28 +272,52 @@ class Network implements Cloneable
         return twoDCopyOf(this.theta);
     }
 
+/*
     int learningLoops;
     boolean learningDone()
     {
         return learningLoops > 0;
     }
 
-    LearningLog learn(Patterns pats)
+    void learn(Patterns pats)
     {
-        var log = new LearningLog();
         for(learningLoops = 0; !learningDone(); learningLoops++)
         {
-            for(int patIdx=0; patIdx<pats.patterns.length; patIdx++)
-            {
-                assert patIdx==0 : "only designed for one pattern so far";
-
-                sweepForward(pats.patterns[patIdx][0]);
-                sweepBack(pats.patterns[patIdx][1]);
-            }
-            log.add(this);
+            oneLearningPass(pats);
         }
-        
-        return log;
+    }
+*/
+
+    // TODO: cause this to return a NEW network instance,
+    // leaving 'this' unchanged by learning.
+    Network learn(Patterns pats, int iterations)
+    {
+        for(int i=0; i<iterations; i++)
+        {
+            oneLearningPass(pats);
+        }
+        return this;
+    }
+
+    private void oneLearningPass(Patterns pats)
+    {
+        for(int patIdx=0; patIdx<pats.size(); patIdx++)
+        {
+            sweepForward(pats.getInputPattern(patIdx));
+            sweepBack(pats.getOutputPattern(patIdx));
+        }
+    }
+
+    double loss(Patterns pats)
+    {
+        double loss=0;
+        for(int patIdx=0; patIdx<pats.size(); patIdx++)
+        {
+            loss = loss + lossForOnePattern(
+                answer(pats.getInputPattern(patIdx)),
+                pats.getOutputPattern(patIdx));
+        }
+        return loss;
     }
 
     /**
@@ -389,12 +419,18 @@ class Network implements Cloneable
         double[][] outs = new double[structure.length][];
         outs[0] = inputPattern;
 
-        outs[1] = answerOneLayer(inputPattern, weights.toPrimitives()[0], theta[0]);
+        outs[1] = answerOneLayer(
+            inputPattern, weights.toPrimitives()[0], theta[0]);
+
         for(int layer=2; layer<structure.length; layer++)
         {
             outs[layer] =
-                answerOneLayer(outs[layer-1], weights.toPrimitives()[layer-1], theta[layer-1]);
+                answerOneLayer(
+                    outs[layer-1],
+                    weights.toPrimitives()[layer-1],
+                    theta[layer-1]);
         }
+
         outputs = new Outputs(outs);
     }
 
@@ -410,6 +446,18 @@ class Network implements Cloneable
     Outputs outputs()
     {
         return outputs;
+    }
+
+    static double lossForOnePattern(double[] output, double[] target)
+    {
+        if(output.length != target.length) throw new IllegalArgumentException();
+
+        IntToDoubleFunction lossAtIndex =
+            i -> 0.5*(target[i]-output[i])*(target[i]-output[i]);
+
+        return IntStream.range(0,output.length)
+                        .mapToDouble(lossAtIndex)
+                        .sum();
     }
 }
 

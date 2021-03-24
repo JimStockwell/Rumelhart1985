@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
-// import org.junit.Test;
-// import org.junit.Ignore;
 
 public class ArrayDeltasTest 
 {
@@ -49,9 +47,9 @@ public class ArrayDeltasTest
     public void multipleOutputWithHiddenLayer()
     {
 
-        Target target = new Target(new Double[] {1.0,1.0} );
         Outputs outputs = new Outputs(new Double[][] {{.9},{.9},{.9,.8}} );
-        Weights weights = new Weights(new Double[][][] {{{.5}},{{.5,.4}}} );
+        Target target = new Target(new Double[] {1.0,1.0} );
+        Weights weights = new Weights(new Double[][][] {{{.5}},{{.5},{.4}}} );
 
         Deltas deltas = new ArrayDeltas(target,outputs,weights);
 
@@ -68,6 +66,18 @@ public class ArrayDeltasTest
             (prior1*weight1+prior2*weight2)*fprime,
             deltas.getDelta(0,0),
             0.000001);
+    }
+
+    @Test
+    public void canConstruct231Weight()
+    {
+        Outputs outputs =
+            new Outputs(new Double[][] {{.9,.9},{.9,.9,.9},{.9}} );
+        Target target = new Target(new Double[] {1.0} );
+        Weights weights = new Weights(new Double[][][] 
+            {{{.1,.1},{.2,.2},{.3,.3}}, // 3 sets of 2
+            {{.1,.1,.1}}});             // 1 set of 3
+        Deltas deltas = new ArrayDeltas(target,outputs,weights);
     }
 }
 
