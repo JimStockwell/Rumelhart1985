@@ -10,10 +10,19 @@ import java.util.function.IntFunction;
 class Weights
 {
     // TODO: do we need our own copy of weights?
+
+    //[layer above input][node]
     private OneNodesFanningInWeights[][] weightsNew;
+
+    Weights(double[][][] weights)
+    {
+        this(mapBoxed3Deep(weights));
+    }
 
     Weights(Double[][][] weights)
     {
+        if(!consistent(weights)) throw new IllegalArgumentException();
+
         this.weightsNew = new OneNodesFanningInWeights[weights.length][];
         for(int layer=0; layer<weightsNew.length; layer++)
         {
@@ -28,14 +37,67 @@ class Weights
         }
     }
 
-    Weights(double[][][] weights)
+    /**
+     * Network structure as implied by the weights.
+     * Includes the input layer.
+     *
+     * @throws IllegalStateException if invoked when there are no weights.
+     */
+    int[] structure()
     {
-        this(mapBoxed3Deep(weights));
+        if( weightsNew.length==0 ) throw new IllegalStateException();
+
+        int[] struct = new int[weightsNew.length+1]; // +1 for input layer
+        struct[0] = weightsNew[0][0].fanningIn.size();
+        for(int i=0; i<weightsNew.length; i++)
+        {
+            struct[i+1] = weightsNew[i].length;
+        }
+        return struct;
     }
 
-    Weights(OneNodesFanningInWeights[][] weights)
+    /**
+     * Validates that the given weights structure
+     * is self consistent.
+     *
+     * @param weights the weights indexed by layer, output node, input node
+     */
+    private boolean consistent(Double[][][] weights)
     {
-        weightsNew = weights;
+        // If there isn't even a layer 0,
+        // it's kind of a boring set of weights,
+        // but it is self consistent!
+
+        if(weights.length == 0) return true;
+
+        //
+        // Layer 0 doesn't need to match anything in weights
+        // because there is no layer -1, that is, no input layer of nodes.
+        // So instead, we check that each node at least has a consistent
+        // number of inputs.
+        //
+        long variety =
+            Arrays.stream(weights[0]).mapToInt(outNode->outNode.length)
+                                     .distinct()
+                                     .count();
+        if( variety != 1 ) return false;
+
+        //
+        // For these layers > 0,
+        // check that each node has the number of inputs
+        // as their are nodes in the lower numbered layer.
+        //
+        for(int layer=1; layer<weights.length; layer++)
+        {
+            for(int node=0; node<weights[layer].length; node++)
+            {
+                if( weights[layer][node].length != weights[layer-1].length)
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private static Double[][][] mapBoxed3Deep(double[][][] xxx)
@@ -57,6 +119,9 @@ class Weights
 
     double getWeight(int layer, int outputNode, int inputNode)
     {
+        java.util.Objects.checkIndex(layer, weightsNew.length);
+        java.util.Objects.checkIndex(outputNode, weightsNew[layer].length);
+
         return weightsNew[layer][outputNode].get(inputNode);
     }
 

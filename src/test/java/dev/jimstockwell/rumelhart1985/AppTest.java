@@ -4,18 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-// import static org.junit.Assert.assertTrue;
-// import static org.junit.Assert.assertEquals;
-// import static org.junit.Assert.assertNotEquals;
 import static java.lang.Math.exp;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
-// import org.junit.Test;
-// import org.junit.Ignore;
 
 public class AppTest 
 {
+/*
     @Disabled("Not supported yet")
     @Test
     public void doesBasicSteps()
@@ -28,6 +24,7 @@ public class AppTest
         net.learn(pats);
         assertEquals(1.0,net.answer(new double[]{0})[0],.01);
     }
+*/
 
     @Test
     public void reportsWCorrectly()
@@ -236,7 +233,6 @@ public class AppTest
         });
     }
 
-    // TODO: return a description of how exactly the argument is illegal
     @Test
     public void thetaNumberOfLayersValidated()
     {
@@ -248,7 +244,6 @@ public class AppTest
         });
     }
 
-    // TODO: return a description of how exactly the argument is illegal
     @Test
     public void thetaEachLayerValidated()
     {
@@ -291,30 +286,6 @@ public class AppTest
     }
 
     @Test
-    public void learnReturnsALog()
-    {
-        Network net = new Network().withStructure(new int[]{1,1});
-        LearningLog log =
-            net.learn(new Patterns(new double[][][] {{{1},{1}}} ));
-    }
-
-    @Test
-    public void learningLogHasInitialNetwork()
-    {
-        int[] structure = {2,2};
-        double[][][] w = {{{1e6,2e6},{1e5,2e5}}};
-        double[][] theta = {{1e6,2e6}};
-
-        Network net = new Network().withStructure(structure)
-                                   .withW(w)
-                                   .withTheta(theta);
-// TODO: Bring this test back, or remove entirely.
-//        LearningLog log = net.learn(Patterns.xor());
-//        assertTrue(java.util.Arrays.deepEquals(log.net(0).w(),w));
-//        assertTrue(java.util.Arrays.deepEquals(log.net(0).theta(),theta));
-    }
-
-    @Test
     public void correctParameterChanges1_1Network1Pat()
     {
         final double ORIGINAL_W = 1;
@@ -339,7 +310,7 @@ public class AppTest
         // figure what delta should be
         // and see if it is
         // 
-        net.learn(new Patterns(new double[][][]{{{INPUT},{TARGET}}}));
+        net.learn(new Patterns(new double[][][]{{{INPUT},{TARGET}}}),1);
         double new_w = net.w()[0][0][0];
         assertEquals(
             ETA*(TARGET-answer[0])*answer[0]*(1-answer[0])*INPUT,
@@ -372,7 +343,7 @@ public class AppTest
 
         double[] answer = net.answer(input);
         double TARGET = 1.0;
-        net.learn(new Patterns(new double[][][]{{input,{TARGET}}}));
+        net.learn(new Patterns(new double[][][]{{input,{TARGET}}}),1);
         double new_w;
 
         new_w = net.w()[0][0][0];
@@ -406,7 +377,7 @@ public class AppTest
                         .withEta(ETA);
 
         double[] answer = net.answer(input);
-        net.learn(new Patterns(new double[][][]{{input,target}}));
+        net.learn(new Patterns(new double[][][]{{input,target}}),1);
         double new_w;
         double new_θ;
 
@@ -452,7 +423,7 @@ public class AppTest
                         .withEta(ETA);
 
         double[] answer = net.answer(input);
-        net.learn(new Patterns(new double[][][]{{input,target}}));
+        net.learn(new Patterns(new double[][][]{{input,target}}),1);
         double new_w;
         double new_θ;
 
@@ -469,8 +440,110 @@ public class AppTest
             ETA*delta1*1,
             new_θ-originalTheta[1][0],
             Math.abs(new_θ-originalTheta[1][0])*1e-6);
+    }
 
+    @Test
+    public void structuresMatchUpFor231()
+    {
+        Patterns pattern = Patterns.xor().onePattern(0);
+        int[] structure = {2, 3, 1};
+        
+        var net = new Network().withStructure(structure)
+                     .withEta(.0001);
 
+        assertEquals(2, net.w().length);
+        assertEquals(3, net.w()[0].length);
+        assertEquals(1, net.w()[1].length);
+        assertEquals(2, net.w()[0][0].length);
+        assertEquals(2, net.w()[0][1].length);
+        assertEquals(2, net.w()[0][2].length);
+        assertEquals(3, net.w()[1][0].length);
+
+        net.learn(pattern,1);
+    }
+
+    @Test
+    public void correctLossForOnePattern()
+    {
+        int[] structure = {2};
+        double[] target = {0.0, 1.0};
+        double[] input1 = {1.0, 1.0};
+        double[] input2 = {1.0, 0.5};
+        double expectedLoss1 = 0.5 * (1+0);
+        double expectedLoss2 = 0.5 * (1+.25);
+        
+        Network net = new Network()
+                        .withStructure(structure);
+        
+        // TODO: Refactor to an across-all-patterns loss function
+        //       and just have one pattern.
+        assertEquals(
+            expectedLoss1,
+            Network.lossForOnePattern(target,input1),
+            .00001);
+
+        assertEquals(
+            expectedLoss2,
+            Network.lossForOnePattern(target,input2),
+            .00001);
+    }
+
+    @Test
+    public void newParametersFromOneStepOfOnePatternReduceLoss()
+    {
+        Patterns pattern = Patterns.xor().onePattern(0);
+        int[] structure = {
+            pattern.getInputPattern(0).length,
+            3,
+            pattern.getOutputPattern(0).length};
+        
+        //
+        // If we have eta very small,
+        // I don't think we'll fail this test very often.
+        // We'll pass it 50% of the time, per iteration,
+        // even if learninging produces random results.
+        // So, keep eta small, and do several iterations,
+        // but not too many.  I'm not sure how to quantify that...
+        //
+        for(int i=0; i<5; i++)
+        {
+            var originalNetwork = new Network().withStructure(structure)
+                                               .withEta(.0001);
+
+            double originalLoss = originalNetwork.loss(pattern);
+            double newLoss = originalNetwork.learn(pattern,1).loss(pattern);
+
+            assertTrue( originalLoss - newLoss > 0 );
+        }
+    }
+
+    @Test
+    public void newParametersFromOneStepOfMultiplePatternsReduceLoss()
+    {
+        Patterns pattern = Patterns.xor();
+        int[] structure = {
+            pattern.getInputPattern(0).length,
+            3,
+            pattern.getOutputPattern(0).length};
+        
+        //
+        // If we have eta very small,
+        // I don't think we'll fail this test very often.
+        // We'll pass it 50% of the time, per iteration,
+        // even if learninging produces random results.
+        // So, keep eta small, and do several iterations,
+        // but not too many.  I'm not sure how to quantify that...
+        //
+        for(int i=0; i<5; i++)
+        {
+            var originalNetwork = new Network().withStructure(structure)
+                                               .withEta(.0001);
+
+            double originalLoss = originalNetwork.loss(pattern);
+            double newLoss = originalNetwork.learn(pattern,1).loss(pattern);
+
+            assertTrue( originalLoss - newLoss > 0 );
+        }
     }
 }
 
