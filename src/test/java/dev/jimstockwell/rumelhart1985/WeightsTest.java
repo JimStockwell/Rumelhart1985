@@ -3,7 +3,6 @@ package dev.jimstockwell.rumelhart1985;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 
 public class WeightsTest 
 {
@@ -54,5 +53,16 @@ public class WeightsTest
         assertThrows(
             IllegalStateException.class,
             () -> new Weights(new double[][][] {}).structure());
+    }
+
+    @Test
+    public void notAViewOrPartialView()
+    {
+        Double[][][] array = new Double[][][]
+            {{{1.0}}};
+        Weights w = new Weights(array);
+        assertEquals(1,w.getWeight(0,0,0));
+        array[0][0][0] = 2.0;
+        assertEquals(1,w.getWeight(0,0,0));
     }
 }

@@ -336,10 +336,10 @@ class Network implements Cloneable
 
     Weights newWeights(Deltas deltas)
     {
-        var array = IntStream.range(1,structure.length)
-                             .mapToObj(layer->newLayerOfWeights(layer,deltas))
-                             .toArray(double[][][]::new);
-        return new Weights(array);
+        Weights.ThreeIntFunction<Double> x = (layer,out,in) ->
+             η * deltas.getDelta(layer,out) * outputs.get(layer,in);
+
+        return weights.nextWeights(x);
     }
 
     double[][] newTheta(Deltas deltas)
@@ -357,32 +357,6 @@ class Network implements Cloneable
         return IntStream.range(0,structure[layer])
                         .mapToDouble(getTheta)
                         .toArray();
-    }
-
-    private double[][] newLayerOfWeights(int layer, Deltas deltas)
-    {
-        IntFunction<double[]> getInputWeights =
-                 outNode -> newNodeInputWeights( deltas, layer-1, outNode);
-
-        return IntStream.range(0,structure[layer])
-                        .mapToObj(getInputWeights)
-                        .toArray(double[][]::new);
-    }
-
-    /**
-     * Returns a new updated instance of input weights
-     * for the specified node.
-     */
-    private double[] newNodeInputWeights(Deltas deltas, int wLayer, int outNode)
-    {
-        IntFunction<Double> adj =
-            inNode -> η *
-                      deltas.getDelta(wLayer,outNode) *
-                      outputs.get(wLayer,inNode);
-
-        return weights.getFanningInWeights(wLayer, outNode)
-                      .withAdjustment(adj)
-                      .toPrimitiveArray();
     }
 
 
