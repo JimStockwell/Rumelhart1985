@@ -3,36 +3,44 @@ package dev.jimstockwell.rumelhart1985;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
+import java.util.stream.Collector;
 import java.util.function.IntFunction;
+import java.util.function.DoubleFunction;
+import java.util.function.Function;
 
 
+/**
+ * Value class representing the weights in a network.
+ * Does not include node thetas.
+ */
 class Weights
 {
-    // TODO: do we need our own copy of weights?
-
-    //[layer above input][node]
-    private OneNodesFanningInWeights[][] weightsNew;
+    final private OneNodesFanningInWeights[][] weights;
 
     Weights(double[][][] weights)
     {
-        this(mapBoxed3Deep(weights));
+        this(map3Deep(weights, Double::valueOf));
     }
 
-    Weights(Double[][][] weights)
+    Weights(Double[][][] w)
     {
-        if(!consistent(weights)) throw new IllegalArgumentException();
+        if(!consistent(w)) throw new IllegalArgumentException();
 
-        this.weightsNew = new OneNodesFanningInWeights[weights.length][];
-        for(int layer=0; layer<weightsNew.length; layer++)
+        // a safe copy.
+        // all three layers are copies.
+        this.weights = new OneNodesFanningInWeights[w.length][];
+        for(int layer=0; layer<weights.length; layer++)
         {
-            weightsNew[layer] =
-                new OneNodesFanningInWeights[weights[layer].length];
-            for(int toNode=0; toNode<weights[layer].length; toNode++)
+            weights[layer] =
+                new OneNodesFanningInWeights[w[layer].length];
+            for(int toNode=0; toNode<w[layer].length; toNode++)
             {
-                weightsNew[layer][toNode] =
+                weights[layer][toNode] =
                     new OneNodesFanningInWeights(
-                        java.util.List.of(weights[layer][toNode]));
+                        java.util.List.of(w[layer][toNode]));
             }
         }
     }
@@ -45,13 +53,13 @@ class Weights
      */
     int[] structure()
     {
-        if( weightsNew.length==0 ) throw new IllegalStateException();
+        if( weights.length==0 ) throw new IllegalStateException();
 
-        int[] struct = new int[weightsNew.length+1]; // +1 for input layer
-        struct[0] = weightsNew[0][0].fanningIn.size();
-        for(int i=0; i<weightsNew.length; i++)
+        int[] struct = new int[weights.length+1]; // +1 for input layer
+        struct[0] = weights[0][0].fanningIn.size();
+        for(int i=0; i<weights.length; i++)
         {
-            struct[i+1] = weightsNew[i].length;
+            struct[i+1] = weights[i].length;
         }
         return struct;
     }
@@ -100,39 +108,81 @@ class Weights
         return true;
     }
 
-    private static Double[][][] mapBoxed3Deep(double[][][] xxx)
+    private static Double[][][] map3Deep(
+        double[][][] xxx,
+        DoubleFunction<Double> mapper)
     {
-        return Arrays.stream(xxx).map(Weights::mapBoxed2Deep)
-                                 .toArray(Double[][][]::new);
+        // 3D array is xxx
+        // 2D array is xx
+        // 1D array is x
+        Function<double[],Double[]> x =
+            (double[] arr) ->
+                DoubleStream.of(arr).mapToObj(mapper).toArray(Double[]::new);
+        Function<double[][], Double[][]> xx =
+            (double[][] arr) ->
+                Stream.of(arr).map(x).toArray(Double[][]::new);
+
+        return Stream.of(xxx).map(xx).toArray(Double[][][]::new);
     }
 
-    private static Double[][] mapBoxed2Deep(double[][] xx)
+    Weights nextWeights(Weights.ThreeIntFunction<Double> adjuster)
     {
-        return Arrays.stream(xx).map(Weights::mapBoxed1Deep)
-                                .toArray(Double[][]::new);
+        var array = IntStream.range(1,weights.length+1)
+                             .mapToObj(layer->newLayerOfWeights(layer,adjuster))
+                             .toArray(double[][][]::new);
+        return new Weights(array);
     }
 
-    private static Double[] mapBoxed1Deep(double[] x)
+    private double[][] newLayerOfWeights(
+        int layer,
+        ThreeIntFunction<Double> adjuster)
     {
-        return Arrays.stream(x).boxed().toArray(Double[]::new);
+        IntFunction<double[]> getInputWeights =
+                 outNode -> newNodeInputWeights( layer-1, outNode, adjuster);
+
+        return IntStream.range(0,weights[layer-1].length)
+                        .mapToObj(getInputWeights)
+                        .toArray(double[][]::new);
+    }
+
+    /**
+     * Returns a new updated instance of input weights
+     * for the specified node.
+     */
+    private double[] newNodeInputWeights(
+        int wLayer,
+        int outNode,
+        ThreeIntFunction<Double> adjuster)
+    {
+        IntFunction<Double> adj =
+            inNode -> adjuster.getAdjustment(wLayer,outNode,inNode);
+
+        return getFanningInWeights(wLayer, outNode).withAdjustment(adj)
+                                                   .toPrimitiveArray();
+    }
+
+    @FunctionalInterface
+    interface ThreeIntFunction<T> {
+        abstract T getAdjustment(int layer, int outNode, int inNode);
     }
 
     double getWeight(int layer, int outputNode, int inputNode)
     {
-        java.util.Objects.checkIndex(layer, weightsNew.length);
-        java.util.Objects.checkIndex(outputNode, weightsNew[layer].length);
+        java.util.Objects.checkIndex(layer, weights.length);
+        java.util.Objects.checkIndex(outputNode, weights[layer].length);
 
-        return weightsNew[layer][outputNode].get(inputNode);
+        return weights[layer][outputNode].get(inputNode);
     }
 
     OneNodesFanningInWeights getFanningInWeights(int layer, int outputNode)
     {
-        return weightsNew[layer][outputNode];
+        // don't need to make a copy; OneNodesFanningInWeights is immutable
+        return weights[layer][outputNode];
     }
 
     double[][][] toPrimitives()
     {
-        return Arrays.stream(weightsNew)
+        return Arrays.stream(weights)
                      .map(Weights::layerAsPrimitives)
                      .toArray(double[][][]::new);
     }
@@ -144,15 +194,31 @@ class Weights
                      .toArray(double[][]::new);
     }
 
-    // TODO: In Network, construct this in one pass.
+    /**
+     * A value class representing
+     * a collection of weights
+     * that are the input to a single node.
+     */
     class OneNodesFanningInWeights
     {
-        List<Double> fanningIn;
+        private List<Double> fanningIn;
         /**
          * The class may keep only a reference to the provided weights,
          * so weights should be immutable or effectively immutable.
          */
         OneNodesFanningInWeights( List<Double> weights )
+        {
+            fanningIn = new ArrayList(weights);
+        }
+
+        /**
+         * Creates a new instance from the provided
+         * effectively immutable list of weights.
+         *
+         * This constructor is private because we don't trust
+         * the public to provide an effectively immutable object.
+         */
+        private OneNodesFanningInWeights( ArrayList<Double> weights )
         {
             fanningIn = weights;
         }
@@ -164,12 +230,15 @@ class Weights
 
         OneNodesFanningInWeights withAdjustment(IntFunction<Double> adjuster)
         {
-            List<Double> inProgress = new ArrayList<>();
-            for(int i=0; i<fanningIn.size(); i++)
-            {
-                inProgress.add( fanningIn.get(i) + adjuster.apply(i) );
-            }
-            return new OneNodesFanningInWeights(inProgress);
+            ArrayList<Double> asList =
+                IntStream.range(0,fanningIn.size())
+                         .mapToObj(i -> fanningIn.get(i) + adjuster.apply(i))
+                         .collect(
+                            ArrayList::new,
+                            ArrayList::add,
+                            ArrayList::addAll);
+
+            return new OneNodesFanningInWeights(asList);
         }
 
         double[] toPrimitiveArray()
