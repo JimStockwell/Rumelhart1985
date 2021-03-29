@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static java.lang.Math.exp;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
@@ -505,12 +506,11 @@ public class AppTest
         // So, keep eta small, and do several iterations,
         // but not too many.  I'm not sure how to quantify that...
         //
+        var originalNetwork = new Network().withStructure(structure)
+                                           .withEta(.0001);
+        double originalLoss = originalNetwork.loss(pattern);
         for(int i=0; i<5; i++)
         {
-            var originalNetwork = new Network().withStructure(structure)
-                                               .withEta(.0001);
-
-            double originalLoss = originalNetwork.loss(pattern);
             double newLoss = originalNetwork.learn(pattern,1).loss(pattern);
 
             assertTrue( originalLoss - newLoss > 0 );
@@ -520,11 +520,11 @@ public class AppTest
     @Test
     public void newParametersFromOneStepOfMultiplePatternsReduceLoss()
     {
-        Patterns pattern = Patterns.xor();
+        Patterns patterns = Patterns.xor();
         int[] structure = {
-            pattern.getInputPattern(0).length,
+            patterns.getInputPattern(0).length,
             3,
-            pattern.getOutputPattern(0).length};
+            patterns.getOutputPattern(0).length};
         
         //
         // If we have eta very small,
@@ -534,16 +534,43 @@ public class AppTest
         // So, keep eta small, and do several iterations,
         // but not too many.  I'm not sure how to quantify that...
         //
+        var originalNetwork = new Network().withStructure(structure)
+                                           .withEta(.0001);
+        double originalLoss = originalNetwork.loss(patterns);
         for(int i=0; i<5; i++)
         {
-            var originalNetwork = new Network().withStructure(structure)
-                                               .withEta(.0001);
-
-            double originalLoss = originalNetwork.loss(pattern);
-            double newLoss = originalNetwork.learn(pattern,1).loss(pattern);
+            double newLoss = originalNetwork.learn(patterns,1).loss(patterns);
 
             assertTrue( originalLoss - newLoss > 0 );
         }
+    }
+
+    @Test // TODO: not sure this REALLY works
+    public void learnConverges()
+    {
+        Patterns patterns = Patterns.xor();
+        int[] structure = {
+            patterns.getInputPattern(0).length,
+            5,
+            patterns.getOutputPattern(0).length};
+
+        var originalNetwork = new Network().withStructure(structure)
+                                           .withEta(.1);
+        var originalLoss = originalNetwork.loss(patterns);
+        var finalNetwork = originalNetwork.learn(patterns);
+        var finalLoss = finalNetwork.loss(patterns);
+
+        assertEquals(0.0, finalNetwork.answer(new double[]{0,0})[0],.1);
+        assertEquals(1.0, finalNetwork.answer(new double[]{0,1})[0],.1);
+        assertEquals(1.0, finalNetwork.answer(new double[]{1,0})[0],.1);
+        assertEquals(0.0, finalNetwork.answer(new double[]{1,1})[0],.1);
+    }
+
+    private String deepToString(double[] x)
+    {
+        Double[] boxed =
+            java.util.stream.DoubleStream.of(x).boxed().toArray(Double[]::new);
+        return Arrays.deepToString(boxed);
     }
 }
 
