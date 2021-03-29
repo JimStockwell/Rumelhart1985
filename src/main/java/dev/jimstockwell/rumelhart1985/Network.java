@@ -215,7 +215,7 @@ class Network implements Cloneable
             retval[layer-1] = new double[structure[layer]];
             for(int node=0; node<structure[layer]; node++)
             {
-                retval[layer-1][node] = rnd.nextDouble()/1000.0;
+                retval[layer-1][node] = rnd.nextDouble()/100.0;
             }
         }
         return retval;
@@ -234,7 +234,7 @@ class Network implements Cloneable
                 retval[layer-1][node] = new double[structure[layer-1]];
                 for(int weight=0; weight<structure[layer-1]; weight++)
                 {
-                    retval[layer-1][node][weight] = rnd.nextDouble()/1000.0;
+                    retval[layer-1][node][weight] = rnd.nextDouble()/100.0;
                 }
             }
         }
@@ -272,22 +272,6 @@ class Network implements Cloneable
         return twoDCopyOf(this.theta);
     }
 
-/*
-    int learningLoops;
-    boolean learningDone()
-    {
-        return learningLoops > 0;
-    }
-
-    void learn(Patterns pats)
-    {
-        for(learningLoops = 0; !learningDone(); learningLoops++)
-        {
-            oneLearningPass(pats);
-        }
-    }
-*/
-
     // TODO: cause this to return a NEW network instance,
     // leaving 'this' unchanged by learning.
     Network learn(Patterns pats, int iterations)
@@ -297,6 +281,14 @@ class Network implements Cloneable
             oneLearningPass(pats);
         }
         return this;
+    }
+
+    Network learn(Patterns pats)
+    {
+        do {
+            oneLearningPass(pats);
+        } while(!closeEnough(pats));
+        return this; // TODO: return a NEW Network instance
     }
 
     private void oneLearningPass(Patterns pats)
@@ -318,6 +310,18 @@ class Network implements Cloneable
                 pats.getOutputPattern(patIdx));
         }
         return loss;
+    }
+
+    boolean closeEnough(Patterns pats)
+    {
+        boolean okay = true;
+        for(int patIdx=0; patIdx<pats.size(); patIdx++)
+        {
+            okay = okay && closeEnoughForOnePattern(
+                answer(pats.getInputPattern(patIdx)),
+                pats.getOutputPattern(patIdx));
+        }
+        return okay;
     }
 
     /**
@@ -422,6 +426,17 @@ class Network implements Cloneable
         return outputs;
     }
 
+    static boolean closeEnoughForOnePattern(double[] output, double[] target)
+    {
+        if(output.length != target.length) throw new IllegalArgumentException();
+
+        IntFunction<Boolean> okayAtIndex =
+            i -> Math.abs(target[i]-output[i]) < .1;
+
+        return IntStream.range(0,output.length)
+                        .mapToObj(okayAtIndex)
+                        .reduce(true,(a,b)->a && b);
+    }
     static double lossForOnePattern(double[] output, double[] target)
     {
         if(output.length != target.length) throw new IllegalArgumentException();
