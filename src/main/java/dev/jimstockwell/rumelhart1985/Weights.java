@@ -3,6 +3,7 @@ package dev.jimstockwell.rumelhart1985;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.stream.Stream;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -10,6 +11,7 @@ import java.util.stream.Collector;
 import java.util.function.IntFunction;
 import java.util.function.DoubleFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 
 /**
@@ -20,48 +22,52 @@ class Weights
 {
     final private OneNodesFanningInWeights[][] weights;
 
-    Weights(double[][][] weights)
+    @Deprecated
+    int weightsLength() {return weights.length;}
+
+    Weights(double[][][] weights) throws IllegalArgumentException
     {
         this(map3Deep(weights, Double::valueOf));
     }
 
-    Weights(Double[][][] w)
+    Weights(Double[][][] w) throws IllegalArgumentException
     {
         if(!consistent(w)) throw new IllegalArgumentException();
 
-        // a safe copy.
-        // all three layers are copies.
-        this.weights = new OneNodesFanningInWeights[w.length][];
-        for(int layer=0; layer<weights.length; layer++)
-        {
-            weights[layer] =
-                new OneNodesFanningInWeights[w[layer].length];
-            for(int toNode=0; toNode<w[layer].length; toNode++)
-            {
-                weights[layer][toNode] =
-                    new OneNodesFanningInWeights(
-                        java.util.List.of(w[layer][toNode]));
-            }
-        }
+        weights = IntStream.range(0,w.length)
+                           .mapToObj(layer -> weightsForLayer(w[layer]))
+                           .toArray(OneNodesFanningInWeights[][]::new);
     }
 
-    /**
-     * Network structure as implied by the weights.
-     * Includes the input layer.
-     *
-     * @throws IllegalStateException if invoked when there are no weights.
-     */
-    int[] structure()
+    private OneNodesFanningInWeights[] weightsForLayer(Double[][] thoseWeights)
     {
-        if( weights.length==0 ) throw new IllegalStateException();
+            IntFunction<OneNodesFanningInWeights> weightsForToNode =
+                toNode -> new OneNodesFanningInWeights(
+                                            List.of(thoseWeights[toNode]));
 
-        int[] struct = new int[weights.length+1]; // +1 for input layer
-        struct[0] = weights[0][0].fanningIn.size();
-        for(int i=0; i<weights.length; i++)
+            return IntStream.range(0,thoseWeights.length)
+                            .mapToObj(weightsForToNode)
+                            .toArray(OneNodesFanningInWeights[]::new);
+    }
+
+    static Weights defaultW(int[] structure, double scale)
+    {
+        var asArray = new DefaultWeightsMaker(structure,scale).get();
+        return new Weights(asArray);
+    }
+
+    boolean consistentWith(int[] structure)
+    {
+        if(weights.length==0 && structure.length<=1) return true;
+        if(structure.length != weights.length+1) return false;
+        if(weights.length>0 && weights[0].length>0) 
+            if(weights[0][0].size() != structure[0]) return false;
+        
+        for(int layer=0; layer<weights.length; layer++)
         {
-            struct[i+1] = weights[i].length;
+            if(weights[layer].length != structure[layer+1]) return false;
         }
-        return struct;
+        return true;
     }
 
     /**
@@ -88,7 +94,7 @@ class Weights
             Arrays.stream(weights[0]).mapToInt(outNode->outNode.length)
                                      .distinct()
                                      .count();
-        if( variety != 1 ) return false;
+        if( variety > 1 ) return false;
 
         //
         // For these layers > 0,
@@ -125,6 +131,9 @@ class Weights
         return Stream.of(xxx).map(xx).toArray(Double[][][]::new);
     }
 
+    /**
+     * @param adjuster amount to add to the weight
+     */
     Weights nextWeights(Weights.ThreeIntFunction<Double> adjuster)
     {
         var array = IntStream.range(1,weights.length+1)
@@ -187,11 +196,26 @@ class Weights
                      .toArray(double[][][]::new);
     }
 
-    static double[][] layerAsPrimitives(OneNodesFanningInWeights[] arr)
+    private static double[][] layerAsPrimitives(OneNodesFanningInWeights[] arr)
     {
         return Arrays.stream(arr)
                      .map(OneNodesFanningInWeights::toPrimitiveArray)
                      .toArray(double[][]::new);
+    }
+
+    @Override public int hashCode()
+    {
+        return Arrays.deepHashCode(weights);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if(this == o) return true;
+        if(o == null) return false;
+        if(getClass() != o.getClass()) return false;
+        Weights that = (Weights) o;
+        return java.util.Objects.deepEquals(this.weights,that.weights);
     }
 
     /**
@@ -208,7 +232,7 @@ class Weights
          */
         OneNodesFanningInWeights( List<Double> weights )
         {
-            fanningIn = new ArrayList(weights);
+            fanningIn = new ArrayList<Double>(weights);
         }
 
         /**
@@ -226,6 +250,11 @@ class Weights
         public Double get(int index)
         {
             return fanningIn.get(index);
+        }
+
+        public int size()
+        {
+            return fanningIn.size();
         }
 
         OneNodesFanningInWeights withAdjustment(IntFunction<Double> adjuster)
@@ -247,6 +276,22 @@ class Weights
                             .mapToDouble(Number::doubleValue)
                             .toArray();
         }
+
+        @Override public int hashCode()
+        {
+            return fanningIn.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if(this == o) return true;
+            if(o == null) return false;
+            if(getClass() != o.getClass()) return false;
+            OneNodesFanningInWeights that = (OneNodesFanningInWeights) o;
+            return java.util.Objects.equals(this.fanningIn,that.fanningIn);
+        }
+
     }
 }
 
