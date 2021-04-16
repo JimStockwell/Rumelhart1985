@@ -13,6 +13,12 @@ import java.util.stream.IntStream;
 import static dev.jimstockwell.rumelhart1985.ArraysExtended.twoDCopyOf;
 import static dev.jimstockwell.rumelhart1985.ArraysExtended.threeDCopyOf;
 
+
+/**
+ * A design decision: Every network must have  an input and an output layer,
+ * at minimum.
+ * It is not required that the input or output layers have nodes.
+ */
 class Network
 {
     //
@@ -53,9 +59,19 @@ class Network
     //
     private final ActivationFunction activationFunction;
 
+
+    static final double DEFAULT_ETA = 1.0;
+    static final int[] default_structure = new int[] {0,0};
+    static final double[][] default_theta = new double[1][0];
+
     Network()
     {
-        this( null, 0, null, null, new LogisticActivationFunction());
+        this(
+            default_structure,
+            DEFAULT_ETA, 
+            Weights.defaultW(default_structure, 1.0),
+            default_theta,
+            new LogisticActivationFunction());
     }
 
     private Network(
@@ -84,6 +100,11 @@ class Network
             activationFunction);
     }
 
+    protected Weights weightsFactory(double[][][] w)
+    {
+        return new SimpleWeights(w);
+    }
+
     Network withW(double[][][] w)
     {
         // TODO: better approach to validating w...
@@ -93,7 +114,7 @@ class Network
         return new Network(
             this.structure,
             this.η,
-            new Weights(w),
+            weightsFactory(w),
             this.theta,
             activationFunction);
     }
@@ -118,7 +139,7 @@ class Network
 
         if(structure.length==1) return; // can't call Weights::structure
 
-        Weights weights = new Weights(w); // checks internal consistency
+        Weights weights = weightsFactory(w); // checks internal consistency
 
         if(!weights.consistentWith(structure))
                 throw new IllegalArgumentException();
@@ -185,6 +206,8 @@ class Network
 
     private boolean structureIsValid(int[] s)
     {
+        if(s.length < 2) return false;
+
         IntPredicate badLayer = count -> count < 0;
         return IntStream.of(s)
                         .filter(badLayer)
@@ -225,8 +248,6 @@ class Network
         return twoDCopyOf(this.theta);
     }
 
-    // TODO: cause this to return a NEW network instance,
-    // leaving 'this' unchanged by learning.
     Network learn(Patterns pats, int iterations)
     {
         return Stream.iterate(this, net -> oneLearningPass(net, pats))
@@ -285,7 +306,7 @@ class Network
                         .sum();
     }
 
-    boolean closeEnough(Patterns pats)
+    private boolean closeEnough(Patterns pats)
     {
         IntPredicate closeEnoughByIndex =
             patIdx -> closeEnoughForOnePattern(
@@ -366,6 +387,11 @@ class Network
 
         for(int layer=1; layer<start.structure.length; layer++)
         {
+            assert outs.length > layer-1;
+            assert layer-1 >= 0;
+            assert start.weights.toPrimitives().length >= 1;
+            assert start.theta.length > layer-1;
+
             outs[layer] =
                 answerOneLayer(
                     start.activationFunction,
