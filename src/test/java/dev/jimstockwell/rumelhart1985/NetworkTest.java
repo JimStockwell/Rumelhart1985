@@ -253,7 +253,7 @@ public class NetworkTest
         assertThrows(IllegalArgumentException.class, () -> {
         Network net = new Network()
             .withStructure(new int[]{1,1})
-            .withW(new Weights(new double[][][]{{{1,2}}}))
+            .withW(new SimpleWeights(new double[][][]{{{1,2}}}))
             .withTheta(new double[][]{{0}});
         });
     }

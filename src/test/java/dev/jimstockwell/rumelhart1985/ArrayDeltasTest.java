@@ -12,7 +12,7 @@ public class ArrayDeltasTest
 
         Target target = new Target(new Double[] {1.0} );
         Outputs outputs = new Outputs(new Double[][] {{.9},{.9}} );
-        Weights weights = new Weights(new Double[][][] {{{.5}}} );
+        Weights weights = new SimpleWeights(new Double[][][] {{{.5}}} );
 
         Deltas deltas = new ArrayDeltas(target,outputs,weights);
 
@@ -28,7 +28,7 @@ public class ArrayDeltasTest
 
         Target target = new Target(new Double[] {1.0} );
         Outputs outputs = new Outputs(new Double[][] {{.9},{.9},{.9}} );
-        Weights weights = new Weights(new Double[][][] {{{.5}},{{.5}}} );
+        Weights weights = new SimpleWeights(new Double[][][] {{{.5}},{{.5}}} );
 
         Deltas deltas = new ArrayDeltas(target,outputs,weights);
 
@@ -48,7 +48,7 @@ public class ArrayDeltasTest
 
         Outputs outputs = new Outputs(new Double[][] {{.9},{.9},{.9,.8}} );
         Target target = new Target(new Double[] {1.0,1.0} );
-        Weights weights = new Weights(new Double[][][] {{{.5}},{{.5},{.4}}} );
+        Weights weights = new SimpleWeights(new Double[][][] {{{.5}},{{.5},{.4}}} );
 
         Deltas deltas = new ArrayDeltas(target,outputs,weights);
 
@@ -73,7 +73,7 @@ public class ArrayDeltasTest
         Outputs outputs =
             new Outputs(new Double[][] {{.9,.9},{.9,.9,.9},{.9}} );
         Target target = new Target(new Double[] {1.0} );
-        Weights weights = new Weights(new Double[][][] 
+        Weights weights = new SimpleWeights(new Double[][][] 
             {{{.1,.1},{.2,.2},{.3,.3}}, // 3 sets of 2
             {{.1,.1,.1}}});             // 1 set of 3
         Deltas deltas = new ArrayDeltas(target,outputs,weights);

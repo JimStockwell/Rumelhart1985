@@ -100,6 +100,11 @@ class Network
             activationFunction);
     }
 
+    protected Weights weightsFactory(double[][][] w)
+    {
+        return new SimpleWeights(w);
+    }
+
     Network withW(double[][][] w)
     {
         // TODO: better approach to validating w...
@@ -109,7 +114,7 @@ class Network
         return new Network(
             this.structure,
             this.η,
-            new Weights(w),
+            weightsFactory(w),
             this.theta,
             activationFunction);
     }
@@ -134,7 +139,7 @@ class Network
 
         if(structure.length==1) return; // can't call Weights::structure
 
-        Weights weights = new Weights(w); // checks internal consistency
+        Weights weights = weightsFactory(w); // checks internal consistency
 
         if(!weights.consistentWith(structure))
                 throw new IllegalArgumentException();
