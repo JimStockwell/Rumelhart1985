@@ -5,14 +5,42 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static java.lang.Math.exp;
-import java.util.Arrays;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 
+import static java.time.Duration.ofMillis;
+import static java.lang.Math.exp;
+import java.util.Arrays;
+
 public class NetworkTest 
 {
+    @Test
+    public void useOfEmptyNetworkCausesNoExceptions()
+    {
+        Network net = new Network();
+        net.w();
+        net.theta();
+        net.learn(Patterns.empty(), 1);
+        net.loss(Patterns.empty());
+        net.answer(new double[0]);
+        net.outputs(new double[0]);
+        assertEquals(net, new Network()); // no random weights or thetas
+        assertEquals(net.hashCode(), new Network().hashCode());
+    }
+
+    @Test
+    public void useOfEmptyNetworkDoesNotHangLearn()
+    throws InterruptedException
+    {
+        Network net = new Network();
+        assertTimeout(ofMillis(500), () -> {
+            net.learn(Patterns.empty());
+        });
+
+    }
+
     @Test
     public void reportsWCorrectly()
     {
@@ -79,14 +107,6 @@ public class NetworkTest
         assertActivationFunctionIsCorrect(1,0,0);
         assertActivationFunctionIsCorrect(1,1,0);
         assertActivationFunctionIsCorrect(1,1,3);
-    }
-
-    @Test
-    @Disabled("not in place yet") // TODO: get this supported
-    public void uninitializedNetworkDoesNotThrow()
-    {
-        new Network().w();
-        new Network().theta();
     }
 
     @Test
@@ -271,16 +291,19 @@ public class NetworkTest
         assertThrows(NullPointerException.class, () -> {
             Network net = new Network().withStructure(null);
         });
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            Network net = new Network().withStructure(new int[]{0});
+        });
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            Network net = new Network().withStructure(new int[]{});
+        });
     }
 
     @Test
     public void learnMakesCorrectSizedWAndTheta()
     {
-        // Network net1 = new Network(new int[]{3});
-        Network net1 = new Network().withStructure(new int[]{3});
-        assertEquals(0, net1.w().length);
-        assertEquals(0, net1.theta().length);
-
         // Network net2 = new Network(new int[]{3,2});
         Network net2 = new Network().withStructure(new int[]{3,2});
         assertEquals(1, net2.w().length);
@@ -514,24 +537,20 @@ public class NetworkTest
     @Test
     public void correctLossForOnePattern()
     {
-        int[] structure = {2};
         double[] target = {0.0, 1.0};
-        double[] input1 = {1.0, 1.0};
-        double[] input2 = {1.0, 0.5};
+        double[] output1 = {1.0, 1.0};
+        double[] output2 = {1.0, 0.5};
         double expectedLoss1 = 0.5 * (1+0);
         double expectedLoss2 = 0.5 * (1+.25);
         
-        Network net = new Network()
-                        .withStructure(structure);
-        
         assertEquals(
             expectedLoss1,
-            Network.lossForOnePattern(target,input1),
+            Network.lossForOnePattern(target,output1),
             .00001);
 
         assertEquals(
             expectedLoss2,
-            Network.lossForOnePattern(target,input2),
+            Network.lossForOnePattern(target,output2),
             .00001);
     }
 

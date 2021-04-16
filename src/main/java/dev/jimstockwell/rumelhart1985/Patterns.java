@@ -81,6 +81,14 @@ class Patterns
         });
     }
 
+    static Patterns empty()
+    {
+        return new Patterns(new double[][][]
+        {
+            {{},{}}
+        });
+    }
+
     @Override
     public boolean equals(Object o)
     {

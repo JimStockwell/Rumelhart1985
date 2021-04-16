@@ -21,6 +21,16 @@ class DefaultWeightsMaker
         this.scale = scale;
     }
 
+    /**
+     * Returns an array of weights
+     * corresponding to the structure the instance was initialized with.
+     *
+     * A {0,0} structure
+     * will return an array with one layer,
+     * having zero output nodes:
+     * double[1][0][].
+     *
+     */
     double[][][] get()
     {
         if(structure.length==0) return new double[0][][];
@@ -35,6 +45,19 @@ class DefaultWeightsMaker
                         .toArray(double[][][]::new);
     }
 
+    /**
+     * Returns a layer of weights connecting two layers.
+     *
+     * The weights are indexed first by destination node
+     * then by source node.
+     *
+     * A layer with 0 in and 0 out will return
+     * a double[][] where the length of the first index is 0.
+     * 
+     * @param from the number of nodes on the layer closer to input
+     * @param to the number of nodes on the layer closer to output
+     * @returns a layer of weights
+     */
     private double[][] generateLayerFromCounts( int from, int to)
     {
         final Random rnd = new Random();

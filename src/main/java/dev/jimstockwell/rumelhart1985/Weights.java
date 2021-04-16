@@ -22,9 +22,6 @@ class Weights
 {
     final private OneNodesFanningInWeights[][] weights;
 
-    @Deprecated
-    int weightsLength() {return weights.length;}
-
     Weights(double[][][] weights) throws IllegalArgumentException
     {
         this(map3Deep(weights, Double::valueOf));
@@ -128,7 +125,11 @@ class Weights
             (double[][] arr) ->
                 Stream.of(arr).map(x).toArray(Double[][]::new);
 
-        return Stream.of(xxx).map(xx).toArray(Double[][][]::new);
+        Double[][][] retval = Stream.of(xxx).map(xx).toArray(Double[][][]::new);
+
+        assert xxx.length == retval.length;
+
+        return retval;
     }
 
     /**
