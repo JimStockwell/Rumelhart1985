@@ -64,7 +64,7 @@ class Network
     static final int[] default_structure = new int[] {0,0};
     static final double[][] default_theta = new double[1][0];
 
-    Network()
+    public Network()
     {
         this(
             default_structure,
@@ -342,22 +342,42 @@ class Network
 
         Deltas deltas = new ArrayDeltas( target, outputs, net.weights);
 
+        // DeltaW deltaW = this.deltaW.next(net.η,deltas,outputs);
+        // Weights weights = net.weights.add(deltaW);
         Weights weights = newWeights(net, outputs, deltas);
         double[][] theta = newTheta(net, deltas);
+        // return net.withW(weights).withTheta(theta).withDeltaW(deltaW);
         return net.withW(weights).withTheta(theta);
     }
 
+    /**
+     * Returns the "next" weights
+     * as we evolve the parameters one step at a time
+     * toward a minimum loss.
+     *
+     * This is based on a single input/output patten.
+     *
+     * @param outputs the output at each node for the current weights and input pattern
+     * @param deltas the deltas at each node for the current input and output pattern.
+     * @return new adjusted weights
+     */
     private static Weights newWeights(
         Network net,
         Outputs outputs,
         Deltas deltas)
     {
+        
         Weights.ThreeIntFunction<Double> weightChange = (layer,out,in) ->
              net.η * deltas.getDelta(layer,out) * outputs.get(layer,in);
 
         return net.weights.nextWeights(weightChange);
     }
 
+    /**
+     * Returns the "next" thetas
+     * as we evolve the parameters one step at a time
+     * toward a minimum loss.
+     */
     private static double[][] newTheta(Network net, Deltas deltas)
     {
         return IntStream.range(1,net.structure.length)

@@ -50,15 +50,7 @@ public class NetworkTest
         Network net = new Network().withStructure(struct)
                                    .withTheta(theta)
                                    .withW(w);
-        assertEquals(w[0].length, net.w()[0].length);
-        for(int i = 0; i < w[0].length; i++)
-        {
-            assertEquals(w[0][i].length, net.w()[0][i].length);
-            for(int j = 0; j < w[0][i].length; j++)
-            {
-                assertEquals(w[0][i][j], net.w()[0][i][j], 0);
-            }
-        }
+        assertTrue(Arrays.deepEquals(w,net.w()));
 
         // A copy, not a view, right?
         w[0][0][0] = 0;
@@ -71,15 +63,8 @@ public class NetworkTest
         double[][] theta = {{1e6,2e6},{1e5}};
         Network net = new Network().withStructure(new int[]{1,2,1})
                                    .withTheta(theta);
-        assertEquals(theta.length, net.theta().length);
-        for(int i = 0; i < theta.length; i++)
-        {
-            assertEquals(theta[i].length, net.theta()[i].length);
-            for(int j = 0; j < theta[i].length; j++)
-            {
-                assertEquals(theta[i][j], net.theta()[i][j], 0);
-            }
-        }
+
+        assertTrue(Arrays.deepEquals(theta,net.theta()));
 
         // A copy, not a view, right?
         theta[0][0] = 0;
