@@ -25,5 +25,5 @@ The NetworkTest.java file demonstrates proper (and improper) use.
 Core Java.
 
 # Acknowledgements
-Learning internal representations by error propagation
-DE Rumelhart, GE Hinton, RJ Williams - 1985 - apps.dtic.mil
+"Learning Internal Representations by Error Propagation"
+- DE Rumelhart, GE Hinton, RJ Williams - 1985 - apps.dtic.mil

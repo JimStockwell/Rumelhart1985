@@ -6,15 +6,22 @@ import org.junit.jupiter.api.Test;
 
 public class ArrayDeltasTest 
 {
+    final ActivationFunction af = new LogisticActivationFunction();
+
+    private Weights makeWeights(Double[][][] w)
+    {
+        return new EdgeWeights(w);
+    }
+
     @Test
     public void oneOutputNoHiddenLayer()
     {
 
         Target target = new Target(new Double[] {1.0} );
-        Outputs outputs = new Outputs(new Double[][] {{.9},{.9}} );
-        Weights weights = new SimpleWeights(new Double[][][] {{{.5}}} );
+        Outputs outputs = new Outputs(new double[][] {{.9},{.9}} );
+        Weights weights = makeWeights(new Double[][][] {{{.5}}} );
 
-        Deltas deltas = new ArrayDeltas(target,outputs,weights);
+        Deltas deltas = new ArrayDeltas(target,outputs,weights,af);
 
         assertEquals(1, deltas.size().size());
         assertEquals(1, deltas.size().get(0));
@@ -27,10 +34,10 @@ public class ArrayDeltasTest
     {
 
         Target target = new Target(new Double[] {1.0} );
-        Outputs outputs = new Outputs(new Double[][] {{.9},{.9},{.9}} );
-        Weights weights = new SimpleWeights(new Double[][][] {{{.5}},{{.5}}} );
+        Outputs outputs = new Outputs(new double[][] {{.9},{.9},{.9}} );
+        Weights weights = makeWeights(new Double[][][] {{{.5}},{{.5}}} );
 
-        Deltas deltas = new ArrayDeltas(target,outputs,weights);
+        Deltas deltas = new ArrayDeltas(target,outputs,weights,af);
 
         assertEquals(2, deltas.size().size());
         assertEquals(1, deltas.size().get(0));
@@ -46,11 +53,11 @@ public class ArrayDeltasTest
     public void multipleOutputWithHiddenLayer()
     {
 
-        Outputs outputs = new Outputs(new Double[][] {{.9},{.9},{.9,.8}} );
+        Outputs outputs = new Outputs(new double[][] {{.9},{.9},{.9,.8}} );
         Target target = new Target(new Double[] {1.0,1.0} );
-        Weights weights = new SimpleWeights(new Double[][][] {{{.5}},{{.5},{.4}}} );
+        Weights weights = makeWeights(new Double[][][] {{{.5}},{{.5},{.4}}} );
 
-        Deltas deltas = new ArrayDeltas(target,outputs,weights);
+        Deltas deltas = new ArrayDeltas(target,outputs,weights,af);
 
         assertEquals(2, deltas.size().size());
         assertEquals(1, deltas.size().get(0));
@@ -71,12 +78,12 @@ public class ArrayDeltasTest
     public void canConstruct231Weight()
     {
         Outputs outputs =
-            new Outputs(new Double[][] {{.9,.9},{.9,.9,.9},{.9}} );
+            new Outputs(new double[][] {{.9,.9},{.9,.9,.9},{.9}} );
         Target target = new Target(new Double[] {1.0} );
-        Weights weights = new SimpleWeights(new Double[][][] 
+        Weights weights = makeWeights(new Double[][][] 
             {{{.1,.1},{.2,.2},{.3,.3}}, // 3 sets of 2
             {{.1,.1,.1}}});             // 1 set of 3
-        Deltas deltas = new ArrayDeltas(target,outputs,weights);
+        Deltas deltas = new ArrayDeltas(target,outputs,weights,af);
     }
 }
 

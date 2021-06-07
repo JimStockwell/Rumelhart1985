@@ -1,25 +1,58 @@
 package dev.jimstockwell.rumelhart1985;
 
-import java.util.List;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 class Target
 {
-    final Double[] target;
+    private final double[] target;
+
+    /**
+     * Constructs a Target from an array of Doubles.
+     * @param target    an array of Doubles specifying the target,
+     *                  one per output node
+     * @throws IllegalArgumentException if target contains any nulls
+     */
     Target(Double[] target)
     {
-        // TODO: safe and simple, or better make a copy?
-        this.target = target;
+        checkNoNulls(target);
+
+        this.target = Arrays.stream(target)
+                            .mapToDouble(Double::doubleValue)
+                            .toArray();
     }
+
+    private void checkNoNulls(Double[] x)
+    {
+        if(Arrays.stream(x).anyMatch(e -> e == null))
+        {
+            throw new IllegalArgumentException(
+                "target contains a null reference");
+        }
+    }
+
     Target(double[] target)
     {
-        this.target = Arrays.stream(target).boxed().toArray(Double[]::new);
+        this.target = Arrays.copyOf(target, target.length);
     }
-    Double getTarget(int node)
+
+    /**
+     * Gets the target value for the specified output node.
+     *
+     * @param node  the index of the output node of interest
+     * @return      the target value for the indicated node
+     */
+    double getTarget(int node)
     {
         return target[node];
+    }
+
+    /**
+     * Returns the size of the target vector
+     */
+    int size()
+    {
+        return target.length;
     }
 }
 

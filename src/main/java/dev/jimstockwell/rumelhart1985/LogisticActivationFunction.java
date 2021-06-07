@@ -10,10 +10,23 @@ class LogisticActivationFunction implements ActivationFunction
         return 1/(1+exp(-(netpj+threshold)));
     }
 
-    @Override
+/*
+    // Not used for anything,
+    // but possibly good to know.
     public double slope(double netpj, double threshold)
     {
         return f(netpj, threshold)*(1-f(netpj, threshold));
+    }
+*/
+
+    @Override
+    public double slopeForOutput(double output)
+    {
+        if(output < 0 || output > 1)
+            throw new IllegalArgumentException(
+                "output must be between 0 and 1 inclusive, but was "+output);
+
+        return output*(1-output);
     }
 }
 

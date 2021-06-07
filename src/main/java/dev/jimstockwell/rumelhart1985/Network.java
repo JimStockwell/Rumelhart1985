@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
 import java.util.function.IntToDoubleFunction;
@@ -13,13 +14,12 @@ import java.util.stream.IntStream;
 import static dev.jimstockwell.rumelhart1985.ArraysExtended.twoDCopyOf;
 import static dev.jimstockwell.rumelhart1985.ArraysExtended.threeDCopyOf;
 
-
 /**
  * A design decision: Every network must have  an input and an output layer,
  * at minimum.
  * It is not required that the input or output layers have nodes.
  */
-class Network
+public final class Network
 {
     //
     // Some comments on the structure this network imposes...
@@ -44,200 +44,222 @@ class Network
     //
     
     private final int[] structure;  // layer 0 is inputs;
-    private final double η;         // gradient descent step size
+    private final double eta;         // gradient descent step size
     private final Weights weights;   
     private final double[][] theta; // layer 0 is first hidden units
-
-    //
-    // TODO: respect modularization of ActivationFunction.
-    // This looks all broken out and seperate and well modularized,
-    // but actually, we hard code its derivite all around, so be careful,
-    // until this is improved!
-    //
-    // If we make this NOT final,
-    // be sure to update equals and hashCode
-    //
     private final ActivationFunction activationFunction;
 
+    /**
+     * Any defensive copies are made and validation is done in Network,
+     * so is not needed here.
+     * Some methods do perform validation in the interest of fail fast.
+     */
+    public static final class Builder {
+        private int[] structure = new int[] {0,0};
+        private Weights w;
+        private double[][] theta;
+        private Double eta = 1.0;
+        private ActivationFunction activationFunction = 
+                new LogisticActivationFunction();
 
-    static final double DEFAULT_ETA = 1.0;
-    static final int[] default_structure = new int[] {0,0};
-    static final double[][] default_theta = new double[1][0];
+        /**
+         * Returns a new Builder to make the specified Network.
+         * If Network is every refactored into a subtype or subinterface,
+         * "from" should stay with this specific implementation.
+         * This is because Builder::from returns a builder
+         * that may not be capable of representing just some arbitrary
+         * Network interface.
+         *
+         * Should not need to validate Network's data
+         * as the class is final.
+         */
+        public static Builder from(Network net)
+        {
+            Builder other = new Builder();
+            other.structure = net.structure;
+            other.w = net.weights;
+            other.theta = net.theta;
+            other.eta = net.eta;
+            other.activationFunction = net.activationFunction;
+            return other;
+        }
 
-    public Network()
-    {
-        this(
-            default_structure,
-            DEFAULT_ETA, 
-            Weights.defaultW(default_structure, 1.0),
-            default_theta,
-            new LogisticActivationFunction());
-    }
+        /**
+         * Builds the specified Network.
+         *
+         * Weights and Theta defaults are set here
+         * rather than in member variable declaration
+         * because the defaults depend on "structure".
+         * They are not set in withStructure because it isn't known there
+         * whether defaults will be needed.
+         * They are not set in the Network itself
+         * because this builder class is responsible for
+         * setting up the Network's parameters.
+         */
+        public Network build() {
+            if(w==null) {
+                Random rnd = new Random();
+                w = new EdgeWeights(structure,(l,inNode,outNode)->rnd.nextDouble());
+                // w = Weights.defaultW(structure, 1.0);
+            }
+            if(theta==null) {
+                theta = defaultTheta(structure);
+            }
+            return new Network(this);
+        }
 
-    private Network(
-        int[] structure,
-        double eta,
-        Weights w,
-        double[][] theta,
-        ActivationFunction af)
-    {
-        this.structure = structure;
-        this.η = eta;
-        this.weights = w;
-        this.theta = theta;
-        this.activationFunction = af;
-    }
+        static double[][] defaultTheta(int[] structure)
+        {
+            final Random rnd = new Random();
+            double[][] retval = new double[structure.length-1][];
+            final int LAYER_AFTER_INPUT = 1;
+            for(int layer=LAYER_AFTER_INPUT; layer<structure.length; layer++)
+            {
+                retval[layer-1] = new double[structure[layer]];
+                for(int node=0; node<structure[layer]; node++)
+                {
+                    retval[layer-1][node] = rnd.nextDouble()*.01;
+                }
+            }
+            return retval;
+        }
 
-    Network withTheta(double[][] theta)
-    {
-        thetaIsValidOrThrow(theta);
+        public Builder withStructure(int[] structure)
+        {
+            // Network should check too,
+            // but we check here to fail fast.
+            structureInvalidity(structure).ifPresent(
+                s->{throw new IllegalArgumentException("structure: "+s);});
 
-        return new Network(
-            this.structure,
-            this.η,
-            this.weights,
-            twoDCopyOf(theta), // our own safe copy
-            activationFunction);
-    }
+            this.structure = structure;
+            return this;
+        }
 
-    protected Weights weightsFactory(double[][][] w)
-    {
-        return new SimpleWeights(w);
-    }
+        /**
+         * Specifies the Weights to use.
+         *
+         * @param w the Weights to use.
+         *          It is expected not to be effectively immutable.
+         *          It is required to be non-null,
+         * 
+         * @return  a reference to this builder
+         */
+        public Builder withW(Weights w)
+        {
+            this.w = Objects.requireNonNull(w);
+            return this;
+        }
 
-    Network withW(double[][][] w)
-    {
-        // TODO: better approach to validating w...
-        // Build
-        wIsValidOrThrow(w);
+        public Builder withTheta(double[][] theta)
+        {
+            thetaIsValidOrThrow(theta);
+            this.theta = twoDCopyOf(theta);
+            return this;
+        }
 
-        return new Network(
-            this.structure,
-            this.η,
-            weightsFactory(w),
-            this.theta,
-            activationFunction);
-    }
-
-    Network withW(Weights w)
-    {
-        if(w == null) throw new NullPointerException();
-        if(! w.consistentWith(structure)) throw new IllegalArgumentException();
-
-        return new Network(
-            this.structure,
-            this.η,
-            w,
-            this.theta,
-            activationFunction);
-    }
-
-    private void wIsValidOrThrow(double[][][] w) throws IllegalArgumentException
-    {
-        if(w == null) throw new IllegalArgumentException();
-        if(structure.length-1 != w.length) throw new IllegalArgumentException();
-
-        if(structure.length==1) return; // can't call Weights::structure
-
-        Weights weights = weightsFactory(w); // checks internal consistency
-
-        if(!weights.consistentWith(structure))
+        private void thetaIsValidOrThrow(double[][] theta)
+        {
+            if(theta == null) throw new IllegalArgumentException();
+            if(structure.length-1 != theta.length)
                 throw new IllegalArgumentException();
-    }
+            if(!structureLayersConsistentWithTheta(theta))
+                throw new IllegalArgumentException();
+        }
 
-    private void
-    thetaIsValidOrThrow(double[][] theta) throws IllegalArgumentException
-    {
-        if(theta == null) throw new IllegalArgumentException();
-        if(structure.length-1 != theta.length)
-            throw new IllegalArgumentException();
-        if(!structureLayersConsistentWithTheta(theta))
-            throw new IllegalArgumentException();
-    }
-    
-    private boolean structureLayersConsistentWithTheta(double[][] theta)
-    {
-        IntPredicate badLayer = i -> structure[i+1] != theta[i].length;
+        private boolean structureLayersConsistentWithTheta(double[][] theta)
+        {
+            IntPredicate badLayer = i -> structure[i+1] != theta[i].length;
 
-        return IntStream.range(0,structure.length-1)
-                        .filter(badLayer)
-                        .count() == 0;
-    }
+            return IntStream.range(0,structure.length-1)
+                            .filter(badLayer)
+                            .count() == 0;
+        }
 
-    Network withEta(double η)
-    {
-        return new Network(
-            this.structure,
-            η,
-            this.weights,
-            this.theta,
-            activationFunction);
+        public Builder withEta(double eta) { this.eta = eta; return this; }
     }
 
     /**
-     * This factory method creates a Network similar to this one, but
-     * replaces the current structure with the provided structure.
-     * Each entry in the array is the number of nodes on a layer.
-     * The first entry is for the input layer,
-     * and the last entry is for the output layer.
-     *
-     * A zero length structure has no input or output nodes.
-     * A one length structure uses the same nodes for input and for output.
-     * A two length structure has no hidden layers.
-     * A three length structure is the first with a hidden layer.
-     *
-     * Having no nodes on a layer is not useful, but it is allowed.
-     *
-     * Theta and W are set to random settings.
+     * Builds a new Network from the specified Builder.
+     * <p>
+     * Builder's structure field is defensively copied here and validated.
+     * <p>
+     * Builder's w is not copied, and must be effectively immutable.
+     * It is validated against structure.
      */
-    Network withStructure(int[] structure)
+    public Network(Builder builder)
     {
-        if(structure==null) throw new NullPointerException();
+        String nullBuilderMsg = "builder must not be null";
+        if(builder==null) throw new NullPointerException(nullBuilderMsg);
 
-        if(!structureIsValid(structure)) throw new IllegalArgumentException();
+        structure = Arrays.copyOf(builder.structure, builder.structure.length);
+        structureInvalidity(structure).ifPresent(
+            s->{throw new IllegalArgumentException("builder: "+s);}
+        );
 
-        return new Network(
-            Arrays.copyOf(structure, structure.length),
-            this.η,
-            Weights.defaultW(structure,.01),
-            defaultTheta(structure),
-            activationFunction);
+        eta = builder.eta;
+        weights = builder.w;
+        wIsValidOrThrow(weights);
+        theta = builder.theta;
+        activationFunction = builder.activationFunction;
     }
 
-    private boolean structureIsValid(int[] s)
+    /**
+     * Validates a proposed "structure".
+     * @return An Optional string describing any non-validity
+     */
+    static public Optional<String> structureInvalidity(int[] s)
     {
-        if(s.length < 2) return false;
+        if(s.length < 2)
+            return Optional.of(
+                "Require structure length >= 2 but is length "
+                    + s.length);
 
         IntPredicate badLayer = count -> count < 0;
-        return IntStream.of(s)
-                        .filter(badLayer)
-                        .count() == 0;
+        if(IntStream.of(s).filter(badLayer).count() != 0)
+            return Optional.of(
+                "Structure counts must all be > 0 " +
+                    "but at least one was not");
+
+        return Optional.empty();
     }
 
-    // TODO: move this out to its own class,
-    //       then simplify
-    static double[][] defaultTheta(int[] structure)
+    private void wIsValidOrThrow(Weights w)
     {
-        final Random rnd = new Random();
-        double[][] retval = new double[structure.length-1][];
-        final int FIRST_LAYER_AFTER_INPUT = 1;
-        for(int layer=FIRST_LAYER_AFTER_INPUT ; layer<structure.length; layer++)
-        {
-            retval[layer-1] = new double[structure[layer]];
-            for(int node=0; node<structure[layer]; node++)
+        if(w == null) throw new IllegalArgumentException();
+
+        if(structure != null) {
+            if(structure.length-1 != w.numberOfWeightLayers())
             {
-                retval[layer-1][node] = rnd.nextDouble()*.01;
+                String msg = "Structure length [" + structure.length
+                    + "] is required to be one greater than w's number "
+                    + "of weight layers ["+w.numberOfWeightLayers()+"]."
+                    + " Structure is: "+Arrays.toString(structure);
+                throw new IllegalArgumentException(msg);
             }
+
+            if(!w.consistentWith(structure))
+                    throw new IllegalArgumentException();
         }
-        return retval;
+    }
+
+    private Weights weightsFactory(double[][][] w)
+    {
+        return new EdgeWeights(w);
     }
 
     /**
-     * @throws IllegalStateException if Network is not initialized.
+     * Returns the weights in use, as a Weights type.
+     * <p>
+     * Strandard implementations of Weights are immutable.
+     * If a particular implementation is not,
+     * then it should at least act like it is.
+     * Thus, we return a reference to the original rather than a copy.
+     *
+     * @return  the weights in use, as a Weights type
      */
-    public double[][][] w()
+    public Weights getW()
     {
-        return this.weights.toPrimitives();
+        return this.weights;
     }
 
     /**
@@ -264,6 +286,12 @@ class Network
                      .get();
     }
 
+    /**
+     * Does one learning pass with the provided patterns.
+     * @param netIn the network we are going to upate with the learning
+     * @param pats the patterns to use in this learning pass
+     * @return a new network, updated for the set of patterns
+     */
     private static Network oneLearningPass(Network netIn, Patterns pats)
     {
         Network net = netIn;
@@ -274,6 +302,14 @@ class Network
         return net;
     }
 
+    /**
+     * Does a back and forward pass for a single pattern,
+     * returning a new network.
+     * @param in the original network
+     * @param pats the collection of patterns that this pattern will come from
+     * @param i the index of the particular pattern to sweep forward and back
+     * @return a new network, updated for the one pattern
+     */
     private static Network sweepBackAndForward(Network in, Patterns pats, int i)
     {
             Outputs outputs = sweepForward(in, pats.getInputPattern(i));
@@ -331,7 +367,11 @@ class Network
     }
 
     /**
-     * Do the back propigation pass,
+     * Do a back propigation pass.
+     * @param targetArray the Network output target
+     * @param outputs outputs of each node for the current pattern
+     * @param net the network, including weights, that we are sweeping back on
+     * @return a new Network, updated by the back propigation pass.
      */
     private static Network sweepBack(
         double[] targetArray,
@@ -340,14 +380,22 @@ class Network
     {
         Target target = new Target(targetArray);
 
-        Deltas deltas = new ArrayDeltas( target, outputs, net.weights);
+        Deltas deltas = new ArrayDeltas(
+            target,
+            outputs,
+            net.weights,
+            net.activationFunction);
 
-        // DeltaW deltaW = this.deltaW.next(net.η,deltas,outputs);
-        // Weights weights = net.weights.add(deltaW);
+        // Weights.ThreeIntFunction<Double> weightChangeFormula =
+        //     (layer,out,in) ->
+        //     net.eta * deltas.getDelta(layer,out) * outputs.get(layer,in);
+        // DeltaW deltaWp = new deltaW(this.structure, weightChangeFormula);
         Weights weights = newWeights(net, outputs, deltas);
         double[][] theta = newTheta(net, deltas);
-        // return net.withW(weights).withTheta(theta).withDeltaW(deltaW);
-        return net.withW(weights).withTheta(theta);
+        return Builder.from(net)
+                      .withW(weights)
+                      .withTheta(theta)
+                      .build();
     }
 
     /**
@@ -357,20 +405,22 @@ class Network
      *
      * This is based on a single input/output patten.
      *
-     * @param outputs the output at each node for the current weights and input pattern
-     * @param deltas the deltas at each node for the current input and output pattern.
-     * @return new adjusted weights
+     * @param outputs   the output at each node
+     *                  for the current weights and input pattern
+     * @param deltas    the deltas at each node
+     *                  for the current input and output pattern.
+     * @return          new adjusted weights
      */
     private static Weights newWeights(
         Network net,
         Outputs outputs,
         Deltas deltas)
     {
-        
         Weights.ThreeIntFunction<Double> weightChange = (layer,out,in) ->
-             net.η * deltas.getDelta(layer,out) * outputs.get(layer,in);
+             net.eta * deltas.getDelta(layer,out) * outputs.get(layer,in);
 
-        return net.weights.nextWeights(weightChange);
+        Weights deltaW = net.weights.populate(weightChange);
+        return net.weights.add(deltaW);
     }
 
     /**
@@ -391,7 +441,7 @@ class Network
         Deltas deltas)
     {
         IntToDoubleFunction getTheta = 
-            node -> deltas.getDelta(layer-1,node)*net.η +
+            node -> deltas.getDelta(layer-1,node)*net.eta +
                     net.theta[layer-1][node];
 
         return IntStream.range(0,net.structure[layer])
@@ -409,14 +459,15 @@ class Network
         {
             assert outs.length > layer-1;
             assert layer-1 >= 0;
-            assert start.weights.toPrimitives().length >= 1;
+            assert start.weights.numberOfWeightLayers() >= 1;
             assert start.theta.length > layer-1;
 
             outs[layer] =
                 answerOneLayer(
                     start.activationFunction,
                     outs[layer-1],
-                    start.weights.toPrimitives()[layer-1],
+                    start.weights,
+                    layer-1,
                     start.theta[layer-1]);
         }
 
@@ -426,11 +477,12 @@ class Network
     private static double[] answerOneLayer(
         ActivationFunction activationFunction,
         double[] input,
-        double[][] w,
+        Weights w,
+        int wLayer,
         double[] theta)
     {
         IntToDoubleFunction nodeToOutput =
-            node -> unitOutput(activationFunction, input, w[node], theta[node]);
+            node -> unitOutput(activationFunction, input, w, wLayer, node, theta[node]);
 
         return IntStream.range(0, theta.length)
                         .mapToDouble(nodeToOutput)
@@ -446,29 +498,33 @@ class Network
     private static double unitOutput(
         ActivationFunction activationFunction,
         double[] inputs,
-        double[] weights,
+        Weights weights,
+        int wLayer,
+        int outNode,
         double theta)
     {
+        IntToDoubleFunction weightedIn =
+            inNode -> inputs[inNode] * weights.getWeight(wLayer,outNode,inNode);
         double netpj = IntStream.range(0, inputs.length)
-                                .mapToDouble(i -> inputs[i] * weights[i])
+                                .mapToDouble(weightedIn)
                                 .sum();
         
         return activationFunction.f(netpj, theta);
     }
 
+    /**
+     * Returns a copy of the network output layer's outputs.
+     * @param inputPattern  the inputs
+     * @return              the outputs.
+     *                      If there is no network, so no output pattern,
+     *                      a zero length answer array is returned.
+     */
     double[] answer(double[] inputPattern)
     {
-        List<Double> results = sweepForward(this, inputPattern).getLastLayer();
-        return toDoubleArray(results);
+        return sweepForward(this, inputPattern).getLastLayer()
+                                               .orElse(new double[] {});
     }
     
-    private static double[] toDoubleArray(List<Double> list)
-    {
-        return list.stream()
-                   .mapToDouble(Number::doubleValue)
-                   .toArray();
-    }
-
     Outputs outputs(double[] inputPattern)
     {
         return sweepForward(this, inputPattern);
@@ -483,7 +539,7 @@ class Network
         Network that = (Network) o;
         return
             Arrays.equals(that.structure, this.structure) &&
-            that.η == this.η &&
+            that.eta == this.eta &&
             Objects.equals(that.weights, this.weights) &&
             Arrays.deepEquals(that.theta, this.theta);
     }
@@ -496,7 +552,7 @@ class Network
         // because of arrays
         //
         return Arrays.hashCode(structure) * 31 +
-               Objects.hash(η) * 31 +
+               Objects.hash(eta) * 31 +
                Objects.hashCode(weights) * 31 + // might be null
                Arrays.deepHashCode(theta);
     }

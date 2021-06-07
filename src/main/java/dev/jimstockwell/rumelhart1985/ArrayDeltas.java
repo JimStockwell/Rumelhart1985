@@ -2,80 +2,153 @@ package dev.jimstockwell.rumelhart1985;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Objects;
+import java.util.function.IntToDoubleFunction;
+import java.util.stream.IntStream;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
-public class ArrayDeltas implements Deltas
+public final class ArrayDeltas implements Deltas
 {
-    double[][] deltas;
+    final Nodes deltas;
+    final ActivationFunction af;
 
-    ArrayDeltas(Target target, Outputs outputs, Weights weights)
-    {
-        int layerCount = outputs.countOfLayersExcludingInput();
-        deltas = new double[layerCount][];
-        //
-        // handle each layer 0 to count-1, from last to first
-        // (keeping in mind that layer is counting the input layer as -1.)
-        //
-        for(int i=layerCount-1; i>=0; i--)
-        {
-            final int nodeCount = outputs.sizeOfNonInputLayer(i);
-            deltas[i] = new double[nodeCount];
-            for(int node=0; node<nodeCount; node++)
-            {
-                setDelta(target,outputs,weights,i,node);
-            }
-        }
-    }
-
-    /**
-     * This sets the given layer
-     * based on the layers closer to the output.
-     */
-    private void setDelta(
+    ArrayDeltas(
         Target target,
         Outputs outputs,
         Weights weights,
-        int layer, // excluding input
-        int node) // node to set delta for
+        ActivationFunction af)
     {
-        double output = outputs.get(layer+1,node);
-        double fprime = output*(1-output); // TODO: don't hardcode formula
-        if(layer == outputs.countOfLayersExcludingInput()-1)
+        Objects.requireNonNull(target);
+        Objects.requireNonNull(outputs);
+        Objects.requireNonNull(weights);
+
+        final int effectiveOutputCount = outputs.getLastLayer()
+                                                .orElse(new double[] {})
+                                                .length;
+        if(target.size() != effectiveOutputCount)
+            throw new IllegalArgumentException(
+                "target size ["+target.size()+"] != " +
+                "final outputs size ["+effectiveOutputCount+"]");
+
+        if(weights.numberOfWeightLayers() !=
+            outputs.countOfLayersExcludingInput())
+                throw new IllegalArgumentException(
+                    "weight layers ["+weights.numberOfWeightLayers()+
+                    "] != output layers -1 ["+ outputs
+                                            .countOfLayersExcludingInput());
+
+        this.af = Objects.requireNonNull(af,"af must not be null");
+
+        deltas = calcAll(target,outputs,weights);
+    }
+
+    private Nodes calcAll(
+        Target target,
+        Outputs outputs,
+        Weights weights
+    )
+    {
+        final int layerCount = outputs.countOfLayersExcludingInput();
+        Nodes[] separateLayers = new Nodes[layerCount];
+
+        for(int i=layerCount-1; i>=0; i--)
         {
-            double delta = (target.getTarget(node)-output)*fprime;
-            deltas[layer][node] = delta;
+            separateLayers[i] = calcLayer(
+                target,
+                outputs,
+                weights,
+                i,
+                i==layerCount-1 ? null : separateLayers[i+1]);
+        }
+        return new Nodes(separateLayers);
+    }
+
+    private Nodes calcLayer(
+        Target target,
+        Outputs outputs,
+        Weights weights,
+        int layerIdx, // 0 = first non-input layer
+        Nodes nextLayer)
+    {
+        assert layerIdx >= 0;
+        assert layerIdx < outputs.countOfLayersExcludingInput();
+        assert layerIdx == outputs.countOfLayersExcludingInput()-1 ||
+                           nextLayer != null;
+
+        final int nodeCount = outputs.sizeOfNonInputLayer(layerIdx);
+        assert nodeCount >= 0 : "Node count < 0";
+        assert nodeCount == weights.sizeOfWeightLayer(layerIdx);
+
+        final Nodes.Populator formula = c -> calcDelta(
+            target, outputs, weights, layerIdx, c.getNode(), nextLayer);
+
+        int[] layerStructure = { nodeCount };
+        return new Nodes(layerStructure, formula);
+    }
+
+    /**
+     * Calculate delta for the one specified node.
+     */
+    private double calcDelta(
+        Target target,
+        Outputs outputs,
+        Weights weights,
+        int layerIdx, // 0 = first layer after inputs
+        int node,
+        Nodes nextLayer)
+    {
+        assert node >= 0;
+        assert node < outputs.sizeOfNonInputLayer(layerIdx) :
+            "node too big... "+
+            "layerIdx: "+layerIdx+
+            ", node: "+node+
+            ", output sizes: "+Arrays.toString(outputs.sizes());
+        assert node < weights.sizeOfWeightLayer(layerIdx);
+
+        // layerIdx+1 because we are interested in the NEXT layer
+        assert nextLayer==null ||
+            nextLayer.sizeOfLayer(0) == outputs.sizeOfNonInputLayer(layerIdx+1);
+
+        // layer parameter to Output::get includes input layer, so +1
+        final double output = outputs.get(layerIdx+1,node);
+        final double fprime = af.slopeForOutput(output);
+
+
+        IntToDoubleFunction deltaContributionForIndex =
+            fromNode -> nextLayer.get(new Nodes.Coordinates(0,fromNode)) *
+                        weights.getWeight(layerIdx+1,fromNode,node) *
+                        fprime;
+        
+        if(layerIdx == outputs.countOfLayersExcludingInput()-1)
+        {
+            assert node < target.size();
+            return (target.getTarget(node)-output)*fprime;
         }
         else
         {
-            double delta = 0;
-            //
-            // Step through propigating nodes.
-            // These nodes are on the layer one closer to output than "layer".
-            //
-            for(int propNode=0; propNode<size().get(layer+1); propNode++)
-            {
-                double deltaFrom = getDelta(layer+1,propNode);
-                double weight = weights.getWeight(layer+1, propNode, node);
-                delta += deltaFrom*weight*fprime;
-            }
-            deltas[layer][node] = delta;
+            assert nextLayer != null : "nextLayer:null, layerIdx="+layerIdx;
+            // sourceIndexes are indexes of the nodes
+            // that delta propigates back from
+            IntStream sourceIndexes =
+                IntStream.range(0,nextLayer.sizeOfLayer(0));
+            return sourceIndexes.mapToDouble(deltaContributionForIndex).sum();
         }
+
     }
 
     public double getDelta(int layer, int node)
     {
-        return deltas[layer][node];
+        return deltas.get(new Nodes.Coordinates(layer,node));
     }
 
     public List<Integer> size()
     {
-        List<Integer> builder = new ArrayList<>(deltas.length);
-        for(int i=0; i<deltas.length; i++)
+        List<Integer> builder = new ArrayList<>(deltas.numberOfLayers());
+        for(int i=0; i<deltas.numberOfLayers(); i++)
         {
-            builder.add(deltas[i].length);
+            builder.add(deltas.sizeOfLayer(i));
         }
-        return List.copyOf(builder);
+        return builder;
     }
 }
 

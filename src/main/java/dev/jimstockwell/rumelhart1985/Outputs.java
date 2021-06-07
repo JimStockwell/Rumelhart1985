@@ -3,65 +3,57 @@ package dev.jimstockwell.rumelhart1985;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Optional;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 /**
- * Maintains a copy of the provided outputs
+ * Maintains a copy of the provided node outputs
  */
-class Outputs
+final class Outputs
 {
-    final List<List<Double>> data; // immutable
-
-    // TODO: combine common code in the two constructors
-    Outputs(Double[][] outputs)
-    {
-        var builder = new ArrayList<List<Double>>(outputs.length);
-        for(int i=0; i<outputs.length; i++)
-        {
-            builder.add(List.of(outputs[i]));
-        }
-        data = List.copyOf(builder);
-    }
+    final Nodes nodes;
 
     Outputs(double[][] outputs)
     {
-        var builder = new ArrayList<List<Double>>(outputs.length);
-        for(int i=0; i<outputs.length; i++)
-        {
-            List<Double> boxed = 
-                Arrays.stream(outputs[i]).boxed().collect(Collectors.toList());
-            builder.add(boxed);
-        }
-        data = List.copyOf(builder);
-    }
-
-    // layer starts with 0 = input layer
-    double get(int layer, int node)
-    {
-        return data.get(layer).get(node);
+        nodes = new Nodes(
+            Stream.of(outputs).mapToInt(level -> level.length).toArray(),
+            coord -> outputs[coord.getLayer()][coord.getNode()]
+        );
     }
 
     /**
-     * As an unmodifiable List of immutables.
+     * Gets the output of the specified node
+     * @param layer the layer index of unit of interest.
+     *              Zero is the input layer.
+     * @param node  the node index of the unit of interest
      */
-    List<List<Double>> getOutputsData()
+    double get(int layer, int node)
     {
-        return data;
+        return nodes.get(layer, node);
     }
 
-    List<Double> getLastLayer()
+    /**
+     * Returns a copy of the final layer of output.
+     */
+    Optional<double[]> getLastLayer()
     {
-        return data.get(data.size()-1);
+        return nodes.getLastLayer(); // this is a copy
     }
 
     int countOfLayersExcludingInput()
     {
-        return data.size()-1;
+        return nodes.numberOfLayers()-1;
     }
 
     int sizeOfNonInputLayer(int layer)
     {
-        return data.get(layer+1).size();
+        return nodes.sizeOfLayer(layer+1);
+    }
+
+    int[] sizes()
+    {
+        return nodes.getStructure();
     }
 }
 

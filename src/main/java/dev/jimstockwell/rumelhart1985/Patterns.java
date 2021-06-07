@@ -3,10 +3,6 @@ package dev.jimstockwell.rumelhart1985;
 import java.util.Arrays;
 import java.util.function.Predicate;
 
-//
-// TODO: make immutable 1D, 2D, and 3D arrayList<Double> classes
-// and pass those around instead of making defensive copies of arrays.
-//
 class Patterns
 {
     final int IN = 0;

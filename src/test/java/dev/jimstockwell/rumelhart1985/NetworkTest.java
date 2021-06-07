@@ -16,25 +16,33 @@ import java.util.Arrays;
 
 public class NetworkTest 
 {
+    private Weights makeWeights(double[][][] w)
+    {
+        return new EdgeWeights(w);
+    }
+
     @Test
     public void useOfEmptyNetworkCausesNoExceptions()
     {
-        Network net = new Network();
-        net.w();
+        Network net = new Network.Builder().build();
+        net.getW();
         net.theta();
         net.learn(Patterns.empty(), 1);
         net.loss(Patterns.empty());
         net.answer(new double[0]);
         net.outputs(new double[0]);
-        assertEquals(net, new Network()); // no random weights or thetas
-        assertEquals(net.hashCode(), new Network().hashCode());
+        //
+        // This equals comparison isn't to find the answer,
+        // but to show it doesn't cause an exception.
+        //
+        net.equals(new Network.Builder().build());
     }
 
     @Test
     public void useOfEmptyNetworkDoesNotHangLearn()
     throws InterruptedException
     {
-        Network net = new Network();
+        Network net = new Network.Builder().build();
         assertTimeout(ofMillis(500), () -> {
             net.learn(Patterns.empty());
         });
@@ -44,25 +52,27 @@ public class NetworkTest
     @Test
     public void reportsWCorrectly()
     {
-        double[][][] w = {{{1e6,2e6},{1e5,2e5}}};
+        var weightsArray = new double[][][] {{{1e6,2e6},{1e5,2e5}}};
+        // Weights w = makeWeights(weightsArray);
+        Weights w = makeWeights(weightsArray);
         double[][] theta = {{0,0}};
         int struct[] = {2,2};
-        Network net = new Network().withStructure(struct)
-                                   .withTheta(theta)
-                                   .withW(w);
-        assertTrue(Arrays.deepEquals(w,net.w()));
+        Network net = new Network.Builder().withStructure(struct)
+                                           .withTheta(theta)
+                                           .withW(w)
+                                           .build();
+        Weights gottenW = net.getW();
 
-        // A copy, not a view, right?
-        w[0][0][0] = 0;
-        assertEquals(1e6,net.w()[0][0][0],0);
+        assertTrue(w==gottenW);
     }
 
     @Test
     public void reportsThetaCorrectly()
     {
         double[][] theta = {{1e6,2e6},{1e5}};
-        Network net = new Network().withStructure(new int[]{1,2,1})
-                                   .withTheta(theta);
+        Network net = new Network.Builder().withStructure(new int[]{1,2,1})
+                                           .withTheta(theta)
+                                           .build();
 
         assertTrue(Arrays.deepEquals(theta,net.theta()));
 
@@ -76,9 +86,10 @@ public class NetworkTest
         double w,
         double theta)
     {
-        Network net = new Network().withStructure(new int[]{1,1})
-                                   .withW(new double[][][]{{{w}}})
-                                   .withTheta(new double[][]{{theta}});
+        Network net = new Network.Builder().withStructure(new int[]{1,1})
+                                   .withW(makeWeights(new double[][][]{{{w}}}))
+                                   .withTheta(new double[][]{{theta}})
+                                   .build();
         assertEquals(
             1/(1+exp(-(w*in+theta))),
             net.answer(new double[]{in})[0],
@@ -97,18 +108,18 @@ public class NetworkTest
     @Test
     public void multipleInputsToOneNodeWorkForward()
     {
-        Network net1 = new Network()
+        Network net1 = new Network.Builder()
             .withStructure(new int[]{1,1})
-            .withW(new double[][][]{{{1}}})
-            .withTheta(new double[][]{{0}});
-        Network net2diff = new Network()
+            .withW(makeWeights(new double[][][]{{{1}}}))
+            .withTheta(new double[][]{{0}}).build();
+        Network net2diff = new Network.Builder()
             .withStructure(new int[]{2,1})
-            .withW(new double[][][]{{{.9,.1}}})
-            .withTheta(new double[][]{{0}});
-        Network net2same = new Network()
+            .withW(makeWeights(new double[][][]{{{.9,.1}}}))
+            .withTheta(new double[][]{{0}}).build();
+        Network net2same = new Network.Builder()
             .withStructure(new int[]{2,1})
-            .withW(new double[][][]{{{1,1}}})
-            .withTheta(new double[][]{{0}});
+            .withW(makeWeights(new double[][][]{{{1,1}}}))
+            .withTheta(new double[][]{{0}}).build();
     
         //
         // We will have one unit, with .1 and .9, summing to 1.0, two ways:
@@ -130,17 +141,17 @@ public class NetworkTest
     @Test
     public void multipleNodesOnALayerWorkForward()
     {
-        Network net = new Network().withStructure(new int[] {2,2})
-                                   .withW(new double[][][] {{{.1,0},{0,.9}}})
-                                   .withTheta(new double[][]{{0,0}});
+        Network net = new Network.Builder().withStructure(new int[] {2,2})
+                                   .withW(makeWeights(new double[][][] {{{.1,0},{0,.9}}}))
+                                   .withTheta(new double[][]{{0,0}}).build();
         double[] answer = net.answer(new double[] {.9,.1});
         assertEquals(2, answer.length);
         assertEquals(answer[0],answer[1],1e-6);
 
         Network diffThetas =
-            new Network().withStructure(new int[] {2,2})
-                         .withW(new double[][][] {{{1,0},{0,2}}})
-                         .withTheta(new double[][]{{0,-3}});
+            new Network.Builder().withStructure(new int[] {2,2})
+                         .withW(makeWeights(new double[][][] {{{1,0},{0,2}}}))
+                         .withTheta(new double[][]{{0,-3}}).build();
         double[] answerDT2 = diffThetas.answer(new double[] {3,3});
         assertEquals(answerDT2[0],answerDT2[1],1e-6);
     }
@@ -148,14 +159,14 @@ public class NetworkTest
     @Test
     public void multipleLayersWorkForward()
     {
-        Network net1 = new Network()
+        Network net1 = new Network.Builder()
             .withStructure(new int[] {1,1})
-            .withW(new double[][][] {{{1}}})
-            .withTheta(new double[][]{{0}});
-        Network net2 = new Network()
+            .withW(makeWeights(new double[][][] {{{1}}}))
+            .withTheta(new double[][]{{0}}).build();
+        Network net2 = new Network.Builder()
             .withStructure(new int[] {1,1,1})
-            .withW(new double[][][] {{{1}},{{1}}})
-            .withTheta(new double[][]{{0},{0}});
+            .withW(makeWeights(new double[][][] {{{1}},{{1}}}))
+            .withTheta(new double[][]{{0},{0}}).build();
         
         // net1 twice should == net2 once
 
@@ -169,11 +180,12 @@ public class NetworkTest
     @Test
     public void wTooLongIsCheckedAgainstStructure()
     {
+        var tooLongW = makeWeights(new double[][][]{{{1,2}}});
         assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
-            .withStructure(new int[]{1,1})
-            .withW(new double[][][]{{{1,2}}})
-            .withTheta(new double[][]{{0}});
+            Network net = new Network.Builder()
+                .withStructure(new int[]{1,1})
+                .withW(tooLongW)
+                .withTheta(new double[][]{{0}}).build();
         });
     }
 
@@ -181,10 +193,10 @@ public class NetworkTest
     public void wTooShortIsCheckedAgainstStructure()
     {
         assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
+        Network net = new Network.Builder()
             .withStructure(new int[]{1,1})
-            .withW(new double[][][]{{{}}})
-            .withTheta(new double[][]{{0}});
+            .withW(makeWeights(new double[][][]{{{}}}))
+            .withTheta(new double[][]{{0}}).build();
         });
     }
 
@@ -192,10 +204,10 @@ public class NetworkTest
     public void wSecondNodeCheckedAgainstStructure()
     {
         assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
+        Network net = new Network.Builder()
             .withStructure(new int[]{1,2})
-            .withW(new double[][][]{{{1.0},{1.1,1.11}}})
-            .withTheta(new double[][]{{0,0}});
+            .withW(makeWeights(new double[][][]{{{1.0},{1.1,1.11}}}))
+            .withTheta(new double[][]{{0,0}}).build();
         });
     }
 
@@ -203,10 +215,10 @@ public class NetworkTest
     public void wNumberOfNodesCorrectVsStructure()
     {
         assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
+        Network net = new Network.Builder()
             .withStructure(new int[]{1,2})
-            .withW(new double[][][]{{{1.0},{1.1},{1.2}}})
-            .withTheta(new double[][]{{0,0}});
+            .withW(makeWeights(new double[][][]{{{1.0},{1.1},{1.2}}}))
+            .withTheta(new double[][]{{0,0}}).build();
         });
     }
 
@@ -214,10 +226,10 @@ public class NetworkTest
     public void wNumberOfLayersCorrectVsStructure()
     {
         assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
+        Network net = new Network.Builder()
             .withStructure(new int[]{1,2,1})
-            .withW(new double[][][]{{{1.0},{1.1}}})
-            .withTheta(new double[][]{{0,0},{0}});
+            .withW(makeWeights(new double[][][]{{{1.0},{1.1}}}))
+            .withTheta(new double[][]{{0,0},{0}}).build();
         });
     }
 
@@ -225,33 +237,21 @@ public class NetworkTest
     public void wEachLayerValidated()
     {
         assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
+        Network net = new Network.Builder()
             .withStructure(new int[]{1,2,1})
-            .withW(new double[][][]{{{1.0},{1.1}},{{}}})
-            .withTheta(new double[][]{{0,0},{0}});
+            .withW(makeWeights(new double[][][]{{{1.0},{1.1}},{{}}}))
+            .withTheta(new double[][]{{0,0},{0}}).build();
         });
     }
-
-    @Test
-    public void externalWeightsValidatedAgainstStructure()
-    {
-        assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
-            .withStructure(new int[]{1,1})
-            .withW(new SimpleWeights(new double[][][]{{{1,2}}}))
-            .withTheta(new double[][]{{0}});
-        });
-    }
-
 
     @Test
     public void thetaNumberOfLayersValidated()
     {
         assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
+        Network net = new Network.Builder()
             .withStructure(new int[]{1,2,1})
-            .withW(new double[][][]{{{1.0},{1.1}},{{1,1}}})
-            .withTheta(new double[][]{{0,0},{0},{0}});
+            .withW(makeWeights(new double[][][]{{{1.0},{1.1}},{{1,1}}}))
+            .withTheta(new double[][]{{0,0},{0},{0}}).build();
         });
     }
 
@@ -259,10 +259,10 @@ public class NetworkTest
     public void thetaEachLayerValidated()
     {
         assertThrows(IllegalArgumentException.class, () -> {
-        Network net = new Network()
+        Network net = new Network.Builder()
             .withStructure(new int[]{1,2,1})
-            .withW(new double[][][]{{{1},{1}},{{1,1}}})
-            .withTheta(new double[][]{{0,0},{0,99}});
+            .withW(makeWeights(new double[][][]{{{1},{1}},{{1,1}}}))
+            .withTheta(new double[][]{{0,0},{0,99}}).build();
         });
     }
 
@@ -270,19 +270,19 @@ public class NetworkTest
     public void withStructureValidates()
     {
         assertThrows(IllegalArgumentException.class, () -> {
-            Network net = new Network().withStructure(new int[]{-1,2,1});
+            Network net = new Network.Builder().withStructure(new int[]{-1,2,1}).build();
         });
 
         assertThrows(NullPointerException.class, () -> {
-            Network net = new Network().withStructure(null);
+            Network net = new Network.Builder().withStructure(null).build();
         });
 
         assertThrows(IllegalArgumentException.class, () -> {
-            Network net = new Network().withStructure(new int[]{0});
+            Network net = new Network.Builder().withStructure(new int[]{0}).build();
         });
 
         assertThrows(IllegalArgumentException.class, () -> {
-            Network net = new Network().withStructure(new int[]{});
+            Network net = new Network.Builder().withStructure(new int[]{}).build();
         });
     }
 
@@ -290,11 +290,9 @@ public class NetworkTest
     public void learnMakesCorrectSizedWAndTheta()
     {
         // Network net2 = new Network(new int[]{3,2});
-        Network net2 = new Network().withStructure(new int[]{3,2});
-        assertEquals(1, net2.w().length);
-        assertEquals(2, net2.w()[0].length);
-        assertEquals(3, net2.w()[0][0].length);
-        assertEquals(3, net2.w()[0][1].length);
+        Network net2 = new Network.Builder().withStructure(new int[]{3,2}).build();
+        assertEquals(1, net2.getW().numberOfWeightLayers());
+        assertEquals(2, net2.getW().sizeOfWeightLayer(0));
         assertEquals(1, net2.theta().length);
         assertEquals(2, net2.theta()[0].length);
     }
@@ -305,8 +303,8 @@ public class NetworkTest
     @Test
     public void learnMakesNonSymetricWAndTheta()
     {
-        Network net2 = new Network().withStructure(new int[]{2,2});
-        assertNotEquals(net2.w()[0][0][1], net2.w()[0][0][0]);
+        Network net2 = new Network.Builder().withStructure(new int[]{2,2}).build();
+        assertNotEquals(net2.getW().getWeight(0,0,1), net2.getW().getWeight(0,0,0));
         assertNotEquals(net2.theta()[0][0], net2.theta()[0][1]);
     }
 
@@ -320,11 +318,11 @@ public class NetworkTest
         double[][][] w = {{{ORIGINAL_W}}};
         double[][] theta = {{ORIGINAL_θ}};
         
-        Network net = new Network()
+        Network net = new Network.Builder()
                         .withStructure(structure)
-                        .withW(w)
+                        .withW(makeWeights(w))
                         .withTheta(theta)
-                        .withEta(ETA);
+                        .withEta(ETA).build();
 
         double INPUT = 1.0;
         double TARGET = 1.0;
@@ -338,7 +336,7 @@ public class NetworkTest
         Network learned = net.learn(
             new Patterns(new double[][][]{{{INPUT},{TARGET}}}),1);
 
-        double new_w = learned.w()[0][0][0];
+        double new_w = learned.getW().getWeight(0,0,0);
         assertEquals(
             ETA*(TARGET-answer[0])*answer[0]*(1-answer[0])*INPUT,
             new_w-ORIGINAL_W,
@@ -360,11 +358,11 @@ public class NetworkTest
         double[][][] w = {{{ORIGINAL_W}}};
         double[][] theta = {{ORIGINAL_θ}};
         
-        Network net = new Network()
+        Network net = new Network.Builder()
                         .withStructure(structure)
-                        .withW(w)
+                        .withW(makeWeights(w))
                         .withTheta(theta)
-                        .withEta(ETA);
+                        .withEta(ETA).build();
 
         double INPUT = 1.0;
         double TARGET = 1.0;
@@ -389,11 +387,11 @@ public class NetworkTest
         double[][] theta = {{ORIGINAL_θ}};
         double[] input = {1,0};
         
-        Network net = new Network()
+        Network net = new Network.Builder()
                         .withStructure(structure)
-                        .withW(w)
+                        .withW(makeWeights(w))
                         .withTheta(theta)
-                        .withEta(ETA);
+                        .withEta(ETA).build();
 
 
         double[] answer = net.answer(input);
@@ -401,13 +399,13 @@ public class NetworkTest
         Network learned =
             net.learn(new Patterns(new double[][][]{{input,{TARGET}}}),1);
 
-        double new_w = learned.w()[0][0][0];
+        double new_w = learned.getW().getWeight(0,0,0);
         assertEquals(
             ETA*(TARGET-answer[0])*answer[0]*(1-answer[0])*input[0],
             new_w-ORIGINAL_W,
             (new_w-ORIGINAL_W)*1e-6);
 
-        new_w = learned.w()[0][0][1];
+        new_w = learned.getW().getWeight(0,0,1);
         assertEquals(
             ETA*(TARGET-answer[0])*answer[0]*(1-answer[0])*input[1],
             new_w-ORIGINAL_W,
@@ -425,11 +423,11 @@ public class NetworkTest
         double[] input = {1};
         double[] target = {1.0,0.0};
         
-        Network net = new Network()
+        Network net = new Network.Builder()
                         .withStructure(structure)
-                        .withW(originalW)
+                        .withW(makeWeights(originalW))
                         .withTheta(originalTheta)
-                        .withEta(ETA);
+                        .withEta(ETA).build();
 
         double[] answer = net.answer(input);
         Network learned = net.learn(
@@ -437,13 +435,13 @@ public class NetworkTest
         double new_w;
         double new_θ;
 
-        new_w = learned.w()[0][0][0];
+        new_w = learned.getW().getWeight(0,0,0);
         assertEquals(
             ETA*(target[0]-answer[0])*answer[0]*(1-answer[0])*input[0],
             new_w-originalW[0][0][0],
             (new_w-originalW[0][0][0])*1e-6);
 
-        new_w = learned.w()[0][1][0];
+        new_w = learned.getW().getWeight(0,1,0);
         assertEquals(
             ETA*(target[1]-answer[1])*answer[1]*(1-answer[1])*input[0],
             new_w-originalW[0][1][0],
@@ -472,11 +470,11 @@ public class NetworkTest
         double[] input = {1.0};
         double[] target = {0.0};
         
-        Network net = new Network()
+        Network net = new Network.Builder()
                         .withStructure(structure)
-                        .withW(originalW)
+                        .withW(makeWeights(originalW))
                         .withTheta(originalTheta)
-                        .withEta(ETA);
+                        .withEta(ETA).build();
 
         double[] answer = net.answer(input);
         Network learned =
@@ -486,7 +484,7 @@ public class NetworkTest
 
         // output layer
         double delta1 = (target[0]-answer[0])*answer[0]*(1-answer[0]);
-        new_w = learned.w()[1][0][0];
+        new_w = learned.getW().getWeight(1,0,0);
         assertEquals(
             ETA*delta1*net.outputs(input).get(1,0),
             new_w-originalW[1][0][0],
@@ -505,18 +503,15 @@ public class NetworkTest
         Patterns pattern = Patterns.xor().onePattern(0);
         int[] structure = {2, 3, 1};
         
-        var net = new Network().withStructure(structure)
-                     .withEta(.0001);
+        var net = new Network.Builder().withStructure(structure)
+                     .withEta(.0001).build();
 
-        assertEquals(2, net.w().length);
-        assertEquals(3, net.w()[0].length);
-        assertEquals(1, net.w()[1].length);
-        assertEquals(2, net.w()[0][0].length);
-        assertEquals(2, net.w()[0][1].length);
-        assertEquals(2, net.w()[0][2].length);
-        assertEquals(3, net.w()[1][0].length);
+        assertEquals(2, net.getW().numberOfWeightLayers());
+        assertEquals(3, net.getW().sizeOfWeightLayer(0));
+        assertEquals(1, net.getW().sizeOfWeightLayer(1));
+        assertTrue(net.getW().consistentWith(structure));
 
-        net.learn(pattern,1);
+        net.learn(pattern,1); // Check that net matches the pattern too
     }
 
     @Test
@@ -556,8 +551,8 @@ public class NetworkTest
         // So, keep eta small, and do several iterations,
         // but not too many.  I'm not sure how to quantify that...
         //
-        var originalNetwork = new Network().withStructure(structure)
-                                           .withEta(.0001);
+        var originalNetwork = new Network.Builder().withStructure(structure)
+                                           .withEta(.0001).build();
         double originalLoss = originalNetwork.loss(pattern);
         for(int i=0; i<5; i++)
         {
@@ -584,8 +579,8 @@ public class NetworkTest
         // So, keep eta small, and do several iterations,
         // but not too many.  I'm not sure how to quantify that...
         //
-        var originalNetwork = new Network().withStructure(structure)
-                                           .withEta(.0001);
+        var originalNetwork = new Network.Builder().withStructure(structure)
+                                           .withEta(.0001).build();
         double originalLoss = originalNetwork.loss(patterns);
         for(int i=0; i<5; i++)
         {
@@ -604,8 +599,8 @@ public class NetworkTest
             5,
             patterns.getOutputPattern(0).length};
 
-        var originalNetwork = new Network().withStructure(structure)
-                                           .withEta(.1);
+        var originalNetwork = new Network.Builder().withStructure(structure)
+                                           .withEta(.1).build();
         var originalLoss = originalNetwork.loss(patterns);
         var finalNetwork = originalNetwork.learn(patterns);
         var finalLoss = finalNetwork.loss(patterns);
@@ -625,73 +620,79 @@ public class NetworkTest
             5,
             patterns.getOutputPattern(0).length};
 
-        var originalNetwork = new Network().withStructure(structure)
+        var builder = new Network.Builder().withStructure(structure)
                                            .withEta(.1);
+        var originalNetwork = builder.build();
         var finalNetwork = originalNetwork.learn(patterns);
         
-        assertEquals(originalNetwork, originalNetwork.withEta(.1));
         assertNotEquals(originalNetwork, finalNetwork);
     }
 
     @Test
     public void equalsWorks()
     {
-        Network emptyNet = new Network();
+        Network emptyNet = new Network.Builder().build();
+        int[] structure = { 1, 1};
 
         assertTrue(emptyNet.equals(emptyNet));
         assertFalse(emptyNet.equals(null));
         assertFalse(emptyNet.equals(new Object()));
 
-        int[] structure = { 1, 1};
-        Network withStruct = new Network().withStructure(structure).withEta(.1);
-        assertEquals(withStruct,withStruct.withEta(.1));
-        assertNotEquals(emptyNet, withStruct);
-
-        assertEquals(new Network().withEta(1),new Network().withEta(1));
-        assertNotEquals(new Network().withEta(1),new Network().withEta(2));
-
         assertEquals(
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{1.0}}),
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{1.0}}));
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}}).build(),
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}}).build());
+
+        // a difference in eta
+        assertNotEquals(
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}})
+                         .withEta(1.0)
+                         .build(),
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}})
+                         .withEta(2.0)
+                         .build());
 
         // a difference in W
         assertNotEquals(
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{1.0}}),
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{2.0}}})
-                         .withTheta(new double[][]{{1.0}}));
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}}).build(),
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{2.0}}}))
+                         .withTheta(new double[][]{{1.0}}).build());
 
         // a difference in Theta
         assertNotEquals(
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{1.0}}),
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{2.0}}));
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}}).build(),
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{2.0}}).build());
 
         // cached output doesn't make them unequal
-        Network with0 = new Network().withStructure(structure)
-                                     .withW(new double[][][]{{{1.0}}})
-                                     .withTheta(new double[][]{{1.0}});
+        Network with0 = new Network.Builder().withStructure(structure)
+                                     .withW(makeWeights(new double[][][]{{{1.0}}}))
+                                     .withTheta(new double[][]{{1.0}}).build();
         with0.answer(new double[] {0});
 
-        Network with1 = new Network().withStructure(structure)
-                                     .withW(new double[][][]{{{1.0}}})
-                                     .withTheta(new double[][]{{1.0}});
+        Network with1 = new Network.Builder().withStructure(structure)
+                                     .withW(makeWeights(new double[][][]{{{1.0}}}))
+                                     .withTheta(new double[][]{{1.0}}).build();
         with1.answer(new double[] {1});
 
         assertEquals(with0, with1);
     }
 
     //
-    // conceivable, these tests might fail even if hashCode is working,
+    // conceivably, these tests might fail even if hashCode is working,
     // since hash codes can be equal for unequal items.
     // However, it is the design intent for Network that this occur
     // only very rarely.
@@ -699,73 +700,80 @@ public class NetworkTest
     @Test
     public void hashCodeWorks()
     {
-        Network emptyNet = new Network();
+        Network emptyNet = new Network.Builder().build();
 
         assertNotEquals(new Object().hashCode(), emptyNet.hashCode());
 
         int[] structure = { 1, 1};
-        Network withStruct = new Network().withStructure(structure).withEta(.1);
-        assertEquals(withStruct.hashCode(), withStruct.withEta(.1).hashCode());
-        assertNotEquals(emptyNet.hashCode(), withStruct.hashCode());
-        assertEquals(new Network().hashCode(), new Network().hashCode());
+        var builder = new Network.Builder()
+            .withStructure(structure)
+            .withW(makeWeights(new double[][][] {{{1.0}}}))
+            .withTheta(new double[][] {{1.0}});
+
+        assertEquals(
+            builder.build().hashCode(),
+            builder.build().hashCode());
+        assertNotEquals(emptyNet.hashCode(), builder.build().hashCode());
         
         //
         // This next one should have different hash codes
         // because weights and theta are initialized randomly.
         //
         assertNotEquals(
-            new Network().withStructure(structure).hashCode(),
-            new Network().withStructure(structure).hashCode());
+            new Network.Builder().withStructure(structure).build().hashCode(),
+            new Network.Builder().withStructure(structure).build().hashCode());
         
 
         assertEquals(
-            new Network().withEta(1).hashCode(),
-            new Network().withEta(1).hashCode());
+            new Network.Builder().withEta(1).build().hashCode(),
+            new Network.Builder().withEta(1).build().hashCode());
         assertNotEquals(
-            new Network().withEta(1).hashCode(),
-            new Network().withEta(2).hashCode());
+            new Network.Builder().withEta(1).build().hashCode(),
+            new Network.Builder().withEta(2).build().hashCode());
 
         assertEquals(
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{1.0}})
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}}).build()
                          .hashCode(),
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{1.0}})
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}}).build()
                          .hashCode());
 
         // a difference in W
         assertNotEquals(
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
                          .withTheta(new double[][]{{1.0}})
+                         .build()
                          .hashCode(),
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{2.0}}})
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{2.0}}}))
                          .withTheta(new double[][]{{1.0}})
+                         .build()
                          .hashCode());
 
         // a difference in Theta
         assertNotEquals(
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{1.0}})
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{1.0}}).build()
                          .hashCode(),
-            new Network().withStructure(structure)
-                         .withW(new double[][][]{{{1.0}}})
-                         .withTheta(new double[][]{{2.0}})
+            new Network.Builder().withStructure(structure)
+                         .withW(makeWeights(new double[][][]{{{1.0}}}))
+                         .withTheta(new double[][]{{2.0}}).build()
                          .hashCode());
 
         // cached output doesn't make them unequal
-        Network with0 = new Network().withStructure(structure)
-                                     .withW(new double[][][]{{{1.0}}})
-                                     .withTheta(new double[][]{{1.0}});
+        Network with0 = new Network.Builder().withStructure(structure)
+                                     .withW(makeWeights(new double[][][]{{{1.0}}}))
+                                     .withTheta(new double[][]{{1.0}}).build();
         with0.answer(new double[] {0});
 
-        Network with1 = new Network().withStructure(structure)
-                                     .withW(new double[][][]{{{1.0}}})
-                                     .withTheta(new double[][]{{1.0}});
+        Network with1 = new Network.Builder().withStructure(structure)
+                                     .withW(makeWeights(new double[][][]{{{1.0}}}))
+                                     .withTheta(new double[][]{{1.0}}).build();
         with1.answer(new double[] {1});
 
         assertEquals(with0, with1);
