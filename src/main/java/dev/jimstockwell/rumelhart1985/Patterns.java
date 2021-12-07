@@ -3,7 +3,10 @@ package dev.jimstockwell.rumelhart1985;
 import java.util.Arrays;
 import java.util.function.Predicate;
 
-class Patterns
+/**
+ * Represents a collection of patterns to use with the network
+ */
+public class Patterns
 {
     final int IN = 0;
     final int OUT = 1;
@@ -11,6 +14,13 @@ class Patterns
     // patterns[whichPattern][inputOroutput][node]
     private double[][][] patterns;
 
+    /**
+     * Constructs a Patterns object from an array.
+     * @param p the patterns in an array,
+     *          indexed by pattern number,
+     *          whether input or output,
+     *          and node number
+     */
     Patterns(double [][][] p)
     {
         if(p == null) throw new NullPointerException();
@@ -29,17 +39,34 @@ class Patterns
                      .count() <= 1;
     }
 
-    int size()
+    /**
+     * The number of patterns in this Patterns
+     *
+     * @return the number of patterns in this Patterns
+     */
+    public int size()
     {
         return patterns.length;
     }
 
-    double[] getInputPattern(int index)
+    /**
+     * Gets the specified input pattern
+     *
+     * @param index the index of the pattern to get the input values of
+     * @return      the input values for the specified pattern
+     */
+    public double[] getInputPattern(int index)
     {
         return copyOfPatternHalf(index, IN);
     }
     
-    double[] getOutputPattern(int index)
+    /**
+     * Gets the specified output pattern
+     *
+     * @param index the index of the pattern to get the output values for
+     * @return      the output values for the specified pattern
+     */
+    public double[] getOutputPattern(int index)
     {
         return copyOfPatternHalf(index, OUT);
     }
@@ -51,13 +78,23 @@ class Patterns
             patterns[patternIndex][inOutIndex].length);
     }
 
-    Patterns onePattern(int index)
+    /**
+     * Returns the specified pattern
+     *
+     * @param index the pattern to return
+     * @return      the specified pattern, alone, in a Patterns object
+     */
+    public Patterns onePattern(int index)
     {
         var patternsAsArray = new double[][][] {patterns[index]};
         return new Patterns(patternsAsArray);
     }
 
-    static Patterns xor()
+    /**
+     * A collection of patterns representing an XORs.
+     * @return an XOR Pattern
+     */
+    public static Patterns xor()
     {
         return new Patterns(new double[][][]
         {
@@ -68,7 +105,11 @@ class Patterns
         });
     }
 
-    static Patterns flip()
+    /**
+     * A collection of patterns representing NOT.
+     * @return a NOT Pattern
+     */
+    public static Patterns flip()
     {
         return new Patterns(new double[][][]
         {
@@ -77,7 +118,11 @@ class Patterns
         });
     }
 
-    static Patterns empty()
+    /**
+     * An empty Pattern
+     * @return an empty pattern
+     */
+    public static Patterns empty()
     {
         return new Patterns(new double[][][]
         {

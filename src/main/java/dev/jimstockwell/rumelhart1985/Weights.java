@@ -16,15 +16,28 @@ import java.util.function.Supplier;
 
 /**
  * Represents the weights in a network.
+ *
  * Each given object is expected to return consistent results.
  * This is most simply done with an immutable class.
  * <p>
  * Does not include node thetas.
  */
-interface Weights
+public interface Weights
 {
+    /**
+     * A functional interface for returning a value given a weight ID
+     */
     @FunctionalInterface
     interface ThreeIntFunction<T> {
+        /**
+         * Determines a value given an edge coordinate
+         * @param layer     the layer of the weight to determine a value for
+         * @param outNode   the destination node of the weight
+         *                  to determine a value for
+         * @param inNode    the source node of the weight
+         *                  to determine a value for
+         * @return          the determined value
+         */
         abstract T apply(int layer, int outNode, int inNode);
     }
 
@@ -52,8 +65,6 @@ interface Weights
      * @param addend    the Weights to add to this Weights object
      * @return          the sum of the addend and this Weights object
      *
-     * @implSpec        This implementation uses its <code>get</code> method
-     *                  to retrieve its own values for adding.
      */
     default Weights add(Weights addend) {
         return populate((l,o,i)->this.getWeight(l,o,i)+addend.getWeight(l,o,i));
@@ -66,6 +77,7 @@ interface Weights
      *                      connected to the network inputs
      * @param outputNode    the node in the layer closer to network output
      * @param inputNode     the node in the layer closer to network input
+     * @return              the value of the specified weight
      */
     double getWeight(int layer, int outputNode, int inputNode);
 
@@ -118,7 +130,7 @@ interface Weights
         /**
          * Constructs a consistency exception.
          *
-         * @param layer         index of the weight layer
+         * @param outLayer      index of the weight layer
          *                      containing the inconsistency
          * @param outNode       index of the output (to) node
          *                      with an input count mismatch

@@ -107,7 +107,6 @@ public final class Network
             if(w==null) {
                 Random rnd = new Random();
                 w = new EdgeWeights(structure,(l,inNode,outNode)->rnd.nextDouble());
-                // w = Weights.defaultW(structure, 1.0);
             }
             if(theta==null) {
                 theta = defaultTheta(structure);
