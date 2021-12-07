@@ -7,12 +7,19 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Represents nodes in a neural network
+ */
 public final class Nodes
 {
-    final static class Coordinates {
+    /**
+     * Specifies the coordinates of a node.
+     */
+    public final static class Coordinates {
         private final int layer;
         private final int node;
-        public Coordinates(int layer, int node)
+
+        Coordinates(int layer, int node)
         {
             this.layer=layer;
             this.node=node;
@@ -22,7 +29,7 @@ public final class Nodes
     }
 
     @FunctionalInterface
-    public interface Populator extends ToDoubleFunction<Coordinates> {}
+    interface Populator extends ToDoubleFunction<Coordinates> {}
 
     private final int[] structure;
     private final double[][] nodes;
@@ -116,6 +123,9 @@ public final class Nodes
 
     /**
      * Gets the value of the node with the specified Coordinates.
+     *
+     * @param c the Coordinates of the node to return a value for
+     * @return  the value for the node with the specified Coordinates
      */
     public double get(Coordinates c)
     {
@@ -142,6 +152,8 @@ public final class Nodes
     /**
      * Returns an Optional copy of the last layer.
      * Optional because a zero length network has no output layer.
+     *
+     * @return the values associated with the output layer of nodes
      */
     public Optional<double[]> getLastLayer()
     {
@@ -156,6 +168,11 @@ public final class Nodes
         return Optional.of(copyOfLastLayer);
     }
 
+    /**
+     * Gets the structure of the Nodes
+     *
+     * @return the number nodes per layer, starting with the input layer
+     */
     public int[] getStructure()
     {
         return structure.clone();
@@ -163,6 +180,8 @@ public final class Nodes
 
     /**
      * Gets the number of layers of Nodes.
+     *
+     * @return the number of layers these nodes are organized into
      */
     public int numberOfLayers()
     {
@@ -170,9 +189,10 @@ public final class Nodes
     }
 
     /**
-     * Gets the number of nodes on the specified layer.
+     * Gets the number of nodes in the specified layer.
      *
-     * @param layer the index of the layer.
+     * @param layer the index of the layer
+     * @return      the number of nodes in the specified layer
      */
     public int sizeOfLayer(int layer)
     {

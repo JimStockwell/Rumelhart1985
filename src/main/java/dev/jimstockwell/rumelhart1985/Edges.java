@@ -5,8 +5,14 @@ import java.util.function.ToDoubleFunction;
 import java.util.Arrays;
 import java.util.Objects;
 
+/**
+ * Represents edges in a neural network
+ */
 public final class Edges
 {
+    /**
+     * Standardizes addressing of edges in a neural network
+     */
     final static class Coordinates {
         private final int layer; // layer of weights, 0 is from inputs
         private final int outNode; // node in "to" layer, output-ward layer
@@ -46,7 +52,7 @@ public final class Edges
     }
 
     /**
-     * The functional type used to populate the this edges class
+     * The functional type used to populate this edges class
      */ 
     @FunctionalInterface
     public interface Populator extends ToDoubleFunction<Coordinates> {}

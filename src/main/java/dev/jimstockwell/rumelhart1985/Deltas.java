@@ -2,6 +2,12 @@ package dev.jimstockwell.rumelhart1985;
 
 import java.util.List;
 
+/**
+ * The deltas found in back progagation of a neural net.
+ *
+ * There is one delta for each node in the network,
+ * except there are no deltas for the input node.
+ */
 public interface Deltas
 {
     /**
@@ -16,6 +22,9 @@ public interface Deltas
 
     /**
      * Gets a potentially unmodifyable List of the size of the Deltas structure.
+     * @return a list of the number of nodes on each layer.
+     *         Layer 0 is the first layer with deltas, that is,
+     *         the first layer after the input layer.
      */
     List<Integer> size();
 }

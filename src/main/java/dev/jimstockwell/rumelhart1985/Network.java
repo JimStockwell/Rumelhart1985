@@ -15,6 +15,8 @@ import static dev.jimstockwell.rumelhart1985.ArraysExtended.twoDCopyOf;
 import static dev.jimstockwell.rumelhart1985.ArraysExtended.threeDCopyOf;
 
 /**
+ * Represents a neural network as described by Rumelhart in his 1985 paper.
+ *
  * A design decision: Every network must have  an input and an output layer,
  * at minimum.
  * It is not required that the input or output layers have nodes.
@@ -72,6 +74,9 @@ public final class Network
          *
          * Should not need to validate Network's data
          * as the class is final.
+         *
+         * @param net   the network to copy
+         * @return      a builder to build the specified network
          */
         public static Builder from(Network net)
         {
@@ -95,6 +100,8 @@ public final class Network
          * They are not set in the Network itself
          * because this builder class is responsible for
          * setting up the Network's parameters.
+         *
+         * @return the built Network
          */
         public Network build() {
             if(w==null) {
@@ -124,6 +131,14 @@ public final class Network
             return retval;
         }
 
+        /**
+         * Specifies the structure to use.
+         *
+         * @param structure the structure to use,
+         *                  as specified by the number of nodes per layer,
+         *                  input layer in array element 0.
+         * @return this updated Builder
+         */
         public Builder withStructure(int[] structure)
         {
             // Network should check too,
@@ -150,6 +165,13 @@ public final class Network
             return this;
         }
 
+        /**
+         * Specifies the Theta values to use.
+         *
+         * @param theta the Theta values to use.
+         *
+         * @return a reference to this builder
+         */
         public Builder withTheta(double[][] theta)
         {
             thetaIsValidOrThrow(theta);
@@ -175,6 +197,13 @@ public final class Network
                             .count() == 0;
         }
 
+        /**
+         * Specifies the Eta value, that is, the learning step size.
+         *
+         * @param eta the Eta values to use.
+         *
+         * @return a reference to this builder
+         */
         public Builder withEta(double eta) { this.eta = eta; return this; }
     }
 
@@ -185,6 +214,8 @@ public final class Network
      * <p>
      * Builder's w is not copied, and must be effectively immutable.
      * It is validated against structure.
+     *
+     * @param builder   the specified builder
      */
     public Network(Builder builder)
     {
@@ -205,7 +236,8 @@ public final class Network
 
     /**
      * Validates a proposed "structure".
-     * @return An Optional string describing any non-validity
+     * @param s the proposed structure
+     * @return an Optional string describing any non-validity
      */
     static public Optional<String> structureInvalidity(int[] s)
     {
@@ -263,14 +295,25 @@ public final class Network
     }
 
     /**
-     * @throws IllegalStateException if Network is not initialized.
+     * Returns the thetas for the network
+     *
+     * @return  the thetas for the network
+     * @throws  IllegalStateException if Network is not initialized.
      */
     public double[][] theta()
     {
         return twoDCopyOf(this.theta);
     }
 
-    Network learn(Patterns pats, int iterations)
+    /**
+     * Updates the network for the given patterns and number of iterations.
+     *
+     * @param pats          the patterns to train the network with
+     * @param iterations    the number of learning iterations to do with these
+     *                      patterns. One iteration is a pass with each pattern.
+     * @return              the updated Network
+     */
+    public Network learn(Patterns pats, int iterations)
     {
         return Stream.iterate(this, net -> oneLearningPass(net, pats))
                      .skip(iterations)
@@ -386,10 +429,6 @@ public final class Network
             net.weights,
             net.activationFunction);
 
-        // Weights.ThreeIntFunction<Double> weightChangeFormula =
-        //     (layer,out,in) ->
-        //     net.eta * deltas.getDelta(layer,out) * outputs.get(layer,in);
-        // DeltaW deltaWp = new deltaW(this.structure, weightChangeFormula);
         Weights weights = newWeights(net, outputs, deltas);
         double[][] theta = newTheta(net, deltas);
         return Builder.from(net)

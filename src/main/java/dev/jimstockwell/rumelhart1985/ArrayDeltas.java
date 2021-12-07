@@ -7,6 +7,9 @@ import java.util.function.IntToDoubleFunction;
 import java.util.stream.IntStream;
 import java.util.Arrays;
 
+/**
+ * Calculates deltas given targets, outputs, weights, and an activation function.
+ */
 public final class ArrayDeltas implements Deltas
 {
     final Nodes deltas;
