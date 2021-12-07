@@ -69,12 +69,6 @@ interface Weights
      */
     double getWeight(int layer, int outputNode, int inputNode);
 
-    @Deprecated
-    default double[][][] toPrimitives()
-    {
-        throw new UnsupportedOperationException();
-    }
-
     /**
      * Returns the number of <b>weight</b> layers.
      * That is, one less than the number of node layers.
