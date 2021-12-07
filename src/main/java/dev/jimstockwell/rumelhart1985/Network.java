@@ -274,11 +274,6 @@ public final class Network
         }
     }
 
-    private Weights weightsFactory(double[][][] w)
-    {
-        return new EdgeWeights(w);
-    }
-
     /**
      * Returns the weights in use, as a Weights type.
      * <p>
