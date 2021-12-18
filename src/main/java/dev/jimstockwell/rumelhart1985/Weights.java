@@ -1,18 +1,6 @@
 package dev.jimstockwell.rumelhart1985;
 
-import java.util.List;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Random;
-import java.util.stream.Stream;
-import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
-import java.util.stream.Collector;
-import java.util.function.IntFunction;
-import java.util.function.DoubleFunction;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
 
 /**
  * Represents the weights in a network.
