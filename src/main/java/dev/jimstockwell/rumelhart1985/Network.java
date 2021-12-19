@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
 import java.util.function.IntToDoubleFunction;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
 import java.util.stream.IntStream;
 import static dev.jimstockwell.rumelhart1985.ArraysExtended.twoDCopyOf;
@@ -48,7 +49,7 @@ public final class Network
     private final int[] structure;  // layer 0 is inputs;
     private final double eta;         // gradient descent step size
     private final Weights weights;   
-    private final double[][] theta; // layer 0 is first hidden units
+    private final Thetas thetas;
     private final ActivationFunction activationFunction;
 
     /**
@@ -60,6 +61,7 @@ public final class Network
         private int[] structure = new int[] {0,0};
         private Weights w;
         private double[][] theta;
+        private Thetas thetas;
         private Double eta = 1.0;
         private ActivationFunction activationFunction = 
                 new LogisticActivationFunction();
@@ -83,7 +85,7 @@ public final class Network
             Builder other = new Builder();
             other.structure = net.structure;
             other.w = net.weights;
-            other.theta = net.theta;
+            other.thetas = net.thetas;
             other.eta = net.eta;
             other.activationFunction = net.activationFunction;
             return other;
@@ -106,10 +108,17 @@ public final class Network
         public Network build() {
             if(w==null) {
                 Random rnd = new Random();
-                w = new EdgeWeights(structure,(l,inNode,outNode)->rnd.nextDouble());
+                w = new EdgeWeights(structure,
+                    (l,inNode,outNode)->rnd.nextDouble());
             }
-            if(theta==null) {
-                theta = defaultTheta(structure);
+            if(thetas==null) {
+                Random rnd = new Random();
+
+                int[] structureLessInputLayer =
+                    IntStream.of(structure).skip(1).toArray();
+
+                thetas = new NodeThetas( structureLessInputLayer,
+                    (layer,node)->rnd.nextDouble());
             }
             return new Network(this);
         }
@@ -174,7 +183,8 @@ public final class Network
         public Builder withTheta(double[][] theta)
         {
             thetaIsValidOrThrow(theta);
-            this.theta = twoDCopyOf(theta);
+            this.thetas = new NodeThetas(theta);
+
             return this;
         }
 
@@ -229,7 +239,7 @@ public final class Network
         eta = builder.eta;
         weights = builder.w;
         wIsValidOrThrow(weights);
-        theta = builder.theta;
+        thetas = builder.thetas;
         activationFunction = builder.activationFunction;
     }
 
@@ -294,9 +304,10 @@ public final class Network
      * @return  the thetas for the network
      * @throws  IllegalStateException if Network is not initialized.
      */
+    // TODO: refactor to return a Thetas object
     public double[][] theta()
     {
-        return twoDCopyOf(this.theta);
+        return thetas.value();
     }
 
     /**
@@ -424,10 +435,10 @@ public final class Network
             net.activationFunction);
 
         Weights weights = newWeights(net, outputs, deltas);
-        double[][] theta = newTheta(net, deltas);
+        Thetas thetas = newThetas(net, deltas);
         return Builder.from(net)
                       .withW(weights)
-                      .withTheta(theta)
+                      .withTheta(thetas.value())
                       .build();
     }
 
@@ -461,25 +472,13 @@ public final class Network
      * as we evolve the parameters one step at a time
      * toward a minimum loss.
      */
-    private static double[][] newTheta(Network net, Deltas deltas)
+    private static Thetas newThetas(Network net, Deltas deltas)
     {
-        return IntStream.range(1,net.structure.length)
-                        .mapToObj(layer->newLayerOfThetas(net, layer,deltas))
-                        .toArray(double[][]::new);
-    }
+        BiFunction<Integer,Integer,Double> thetaChange = (layer,node) ->
+            net.eta * deltas.getDelta(layer,node);
 
-    private static double[] newLayerOfThetas(
-        Network net,
-        int layer,
-        Deltas deltas)
-    {
-        IntToDoubleFunction getTheta = 
-            node -> deltas.getDelta(layer-1,node)*net.eta +
-                    net.theta[layer-1][node];
-
-        return IntStream.range(0,net.structure[layer])
-                        .mapToDouble(getTheta)
-                        .toArray();
+        Thetas deltaTh = net.thetas.populate(thetaChange);
+        return net.thetas.add(deltaTh);
     }
 
 
@@ -493,7 +492,7 @@ public final class Network
             assert outs.length > layer-1;
             assert layer-1 >= 0;
             assert start.weights.numberOfWeightLayers() >= 1;
-            assert start.theta.length > layer-1;
+            assert start.thetas.numberOfThetaLayers() > layer-1;
 
             outs[layer] =
                 answerOneLayer(
@@ -501,7 +500,7 @@ public final class Network
                     outs[layer-1],
                     start.weights,
                     layer-1,
-                    start.theta[layer-1]);
+                    start.thetas);
         }
 
         return new Outputs(outs);
@@ -512,12 +511,12 @@ public final class Network
         double[] input,
         Weights w,
         int wLayer,
-        double[] theta)
+        Thetas theta)
     {
         IntToDoubleFunction nodeToOutput =
-            node -> unitOutput(activationFunction, input, w, wLayer, node, theta[node]);
+            node -> unitOutput(activationFunction, input, w, wLayer, node, theta);
 
-        return IntStream.range(0, theta.length)
+        return IntStream.range(0, theta.sizeOfThetaLayer(wLayer))
                         .mapToDouble(nodeToOutput)
                         .toArray();
     }
@@ -534,7 +533,7 @@ public final class Network
         Weights weights,
         int wLayer,
         int outNode,
-        double theta)
+        Thetas theta)
     {
         IntToDoubleFunction weightedIn =
             inNode -> inputs[inNode] * weights.getWeight(wLayer,outNode,inNode);
@@ -542,7 +541,7 @@ public final class Network
                                 .mapToDouble(weightedIn)
                                 .sum();
         
-        return activationFunction.f(netpj, theta);
+        return activationFunction.f(netpj, theta.getTheta(wLayer,outNode));
     }
 
     /**
@@ -574,7 +573,7 @@ public final class Network
             Arrays.equals(that.structure, this.structure) &&
             that.eta == this.eta &&
             Objects.equals(that.weights, this.weights) &&
-            Arrays.deepEquals(that.theta, this.theta);
+            Objects.equals(that.thetas, this.thetas);
     }
 
     @Override
@@ -587,7 +586,7 @@ public final class Network
         return Arrays.hashCode(structure) * 31 +
                Objects.hash(eta) * 31 +
                Objects.hashCode(weights) * 31 + // might be null
-               Arrays.deepHashCode(theta);
+               Objects.hashCode(thetas);
     }
 }
 

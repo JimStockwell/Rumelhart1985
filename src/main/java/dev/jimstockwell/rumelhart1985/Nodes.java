@@ -49,6 +49,14 @@ public final class Nodes
     }
 
     /**
+     * Returns a copy of the theta values as a 2 index array
+     * @return  a copy of the theta values as a 2 index array
+     */
+    double[][] value() {
+        return ArraysExtended.twoDCopyOf(nodes);
+    }
+
+    /**
      * Constructor specifying the structure of the Nodes
      * and a formula to use to populate each node.
      *
@@ -76,6 +84,19 @@ public final class Nodes
             if(count < 0) throw new IllegalArgumentException(
                 String.format("structure includes negative value %d",count));
         }
+    }
+
+    /**
+     * Returns whether this Nodes is consistent with the specified structure.
+     * They are consistent if they are the same.
+     *
+     * @param structure the structure to report consistency against
+     * @return          true if the specified structure equals
+     *                  this object's specified structure.
+     */
+    public boolean consistentWith(int[] structure)
+    {
+        return Arrays.equals(this.structure,structure);
     }
 
     private double[][] makeAllNodes(Populator f)
@@ -198,5 +219,26 @@ public final class Nodes
     {
         Objects.checkIndex(layer,structure.length);
         return structure[layer];
+    }
+
+    @Override public int hashCode()
+    {
+        return Arrays.deepHashCode(nodes);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if(this == o) return true;
+        if(o == null) return false;
+        if(getClass() != o.getClass()) return false;
+        Nodes that = (Nodes) o;
+        return Arrays.deepEquals(this.nodes,that.nodes);
+    }
+
+    @Override
+    public String toString()
+    {
+        return Arrays.deepToString(nodes);
     }
 }
